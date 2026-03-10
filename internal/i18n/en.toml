@@ -1,0 +1,115 @@
+# English translations
+
+[welcome]
+other = "🎉 Welcome to Bot Shop!\nSelect a function below:"
+
+[btn_buy]
+other = "🛒 Buy Account"
+
+[btn_profile]
+other = "👤 Profile"
+
+[btn_deposit]
+other = "💰 Deposit"
+
+[btn_support]
+other = "🆘 Support"
+
+[btn_notes]
+other = "📋 Notes"
+
+[btn_language]
+other = "🌐 Language"
+
+[profile_info]
+other = "👤 **Your Profile**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👤 Username: @{{.Username}}\n💰 Balance: **{{.Balance}} USDT**\n📅 Joined: {{.JoinDate}}"
+
+[select_product]
+other = "🛒 Select the account type to buy:"
+
+[product_item]
+other = "{{.Name}} — {{.Price}} USDT (Stock: {{.Stock}})"
+
+[enter_quantity]
+other = "📝 Enter quantity for **{{.ProductName}}**\n💰 Price: {{.Price}} USDT each\n📦 In stock: {{.Stock}}"
+
+[insufficient_balance]
+other = "❌ Insufficient balance!\nRequired: {{.Required}} USDT\nBalance: {{.Balance}} USDT\n\n💰 Please deposit more funds."
+
+[out_of_stock]
+other = "❌ Out of stock or insufficient quantity.\nAvailable: {{.Available}}"
+
+[order_success]
+other = "✅ Order #{{.OrderID}} successful!\n\n📦 Product: {{.ProductName}}\n🔢 Quantity: {{.Quantity}}\n💰 Total: {{.Total}} USDT\n\n📄 Account file attached below."
+
+[deposit_instructions]
+other = "💰 **How to Deposit USDT**\n\n📋 Send USDT to the following wallet address:\n\n🔗 Address: `{{.Address}}`\n🌐 Network: **{{.Network}}**\n\n⚠️ **After sending**, please send the transaction ID to the bot for verification.\n\n💡 You can send TxID/TxHash or Binance internal transaction ID (shown in email/withdrawal history)."
+
+[deposit_success]
+other = "✅ Deposit successful!\n\n💰 Amount: **{{.Amount}} USDT**\n💰 New balance: **{{.NewBalance}} USDT**"
+
+[support_message]
+other = "🆘 **Support**\n\nContact admin: @{{.AdminUsername}}\nOr click: {{.SupportLink}}"
+
+[notes_header]
+other = "📋 **Important Notes**\n"
+
+[no_notes]
+other = "📋 No notes available."
+
+[language_select]
+other = "🌐 Chọn ngôn ngữ / Select language:"
+
+[language_changed]
+other = "✅ Language changed to English!"
+
+[invalid_input]
+other = "❌ Invalid input. Please try again."
+
+[error_general]
+other = "❌ An error occurred. Please try again later."
+
+[btn_back]
+other = "⬅️ Back"
+
+[confirm_buy]
+other = "🛒 Confirm purchase?\n\n📦 {{.ProductName}} x{{.Quantity}}\n💰 Total: {{.Total}} USDT\n💰 Balance: {{.Balance}} USDT"
+
+[btn_confirm]
+other = "✅ Confirm"
+
+[btn_cancel]
+other = "❌ Cancel"
+
+[order_cancelled]
+other = "❌ Order has been cancelled."
+
+[invalid_quantity]
+other = "❌ Invalid quantity. Please enter a positive integer."
+
+[binance_not_configured]
+other = "❌ Payment system not configured. Please contact admin."
+
+[binance_api_error]
+other = "❌ Payment system error (invalid or expired API key). Please contact admin."
+
+[deposit_txid_invalid]
+other = "❌ Invalid transaction hash (TxID). Please send the correct TxID."
+
+[deposit_txid_processing]
+other = "⏳ Verifying your transaction, please wait..."
+
+[deposit_txid_already_used]
+other = "❌ This TxID has already been used."
+
+[deposit_txid_not_found]
+other = "❌ Transaction not found with this TxID on Binance.\nPlease double-check your TxID or wait a few minutes for confirmation."
+
+[deposit_txid_not_confirmed]
+other = "⏳ Transaction not yet confirmed on blockchain. Please try again in a few minutes."
+
+[deposit_txid_not_usdt]
+other = "❌ This transaction is not USDT. Please only send USDT."
+
+[deposit_txid_wrong_address]
+other = "❌ This transaction was sent to a different address than the shop's deposit address."

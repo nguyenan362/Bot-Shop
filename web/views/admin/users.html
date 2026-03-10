@@ -1,0 +1,29 @@
+<div class="card">
+    <h2>All Users</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Telegram ID</th>
+                <th>Username</th>
+                <th>Balance (USDT)</th>
+                <th>Language</th>
+                <th>Admin</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Users}}
+            <tr>
+                <td>{{.TeleID}}</td>
+                <td>@{{.Username}}</td>
+                <td>{{.BalanceUSDT}}</td>
+                <td>{{.Language}}</td>
+                <td>{{if .IsAdmin}}<span class="badge badge-success">Yes</span>{{else}}No{{end}}</td>
+                <td>{{.JoinDate.Format "2006-01-02"}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="6" style="text-align:center;color:#999">No users yet</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

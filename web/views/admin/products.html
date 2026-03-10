@@ -1,0 +1,48 @@
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2>Tất cả sản phẩm</h2>
+        <a href="/admin/products/new" class="btn btn-primary">+ Thêm sản phẩm</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên (VI)</th>
+                <th>Tên (EN)</th>
+                <th>Giá (USDT)</th>
+                <th>Kho</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Products}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td>{{.NameVI}}</td>
+                <td>{{.NameEN}}</td>
+                <td>{{.PriceUSDT}}</td>
+                <td>{{.Stock}}</td>
+                <td>
+                    <form method="POST" action="/admin/products/{{.ID}}/toggle" style="display:inline">
+                        {{if .Active}}
+                        <button class="badge badge-success" style="border:none;cursor:pointer" title="Nhấn để tắt">Active</button>
+                        {{else}}
+                        <button class="badge badge-danger" style="border:none;cursor:pointer" title="Nhấn để bật">Inactive</button>
+                        {{end}}
+                    </form>
+                </td>
+                <td class="actions">
+                    <a href="/admin/products/{{.ID}}/edit" class="btn btn-primary btn-sm">Sửa</a>
+                    <a href="/admin/products/{{.ID}}/accounts" class="btn btn-success btn-sm">Kho ({{.Stock}})</a>
+                    <form method="POST" action="/admin/products/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Xóa sản phẩm này? Tất cả tài khoản kho hàng cũng sẽ bị xóa!')">
+                        <button class="btn btn-danger btn-sm">Xóa</button>
+                    </form>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="7" style="text-align:center;color:#999;padding:24px">Chưa có sản phẩm nào</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,33 @@
+<div class="card">
+    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
+    <form method="POST" action="{{.Action}}">
+        <div class="form-group">
+            <label>Tên sản phẩm (Tiếng Việt)</label>
+            <input type="text" name="name_vi" value="{{if .Product}}{{.Product.NameVI}}{{end}}" required>
+        </div>
+        <div class="form-group">
+            <label>Tên sản phẩm (English)</label>
+            <input type="text" name="name_en" value="{{if .Product}}{{.Product.NameEN}}{{end}}" required>
+        </div>
+        <div class="form-group">
+            <label>Giá (USDT)</label>
+            <input type="number" step="0.01" name="price_usdt" value="{{if .Product}}{{.Product.PriceUSDT}}{{end}}" required>
+        </div>
+        <div class="form-group">
+            <label>Mô tả (Tiếng Việt)</label>
+            <textarea name="description_vi">{{if .Product}}{{.Product.DescriptionVI}}{{end}}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Mô tả (English)</label>
+            <textarea name="description_en">{{if .Product}}{{.Product.DescriptionEN}}{{end}}</textarea>
+        </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" name="active" id="active" {{if .Product}}{{if .Product.Active}}checked{{end}}{{else}}checked{{end}}>
+            <label for="active" style="margin:0">Đang bán</label>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn-primary">Lưu</button>
+            <a href="/admin/products" class="btn" style="background:#6c757d;color:#fff">Hủy</a>
+        </div>
+    </form>
+</div>

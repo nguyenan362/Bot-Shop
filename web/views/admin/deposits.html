@@ -1,0 +1,38 @@
+<div class="card">
+    <h2>All Deposits</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Tx ID</th>
+                <th>Amount (USDT)</th>
+                <th>Network</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Paid At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Deposits}}
+            <tr>
+                <td>#{{.ID}}</td>
+                <td>{{.UserTeleID}}</td>
+                <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{if .TxID}}{{.TxID}}{{else}}{{.MerchantTradeNo}}{{end}}</td>
+                <td>{{.AmountUSDT}}</td>
+                <td>{{.Network}}</td>
+                <td>
+                    {{if eq .Status "paid"}}<span class="badge badge-success">Paid</span>
+                    {{else if eq .Status "unmatched"}}<span class="badge badge-warning">Unmatched</span>
+                    {{else if eq .Status "pending"}}<span class="badge badge-warning">Pending</span>
+                    {{else}}<span class="badge badge-danger">{{.Status}}</span>{{end}}
+                </td>
+                <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                <td>{{if .PaidAt}}{{.PaidAt.Format "2006-01-02 15:04"}}{{else}}-{{end}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="8" style="text-align:center;color:#999">No deposits yet</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

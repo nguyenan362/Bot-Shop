@@ -1,0 +1,115 @@
+# Vietnamese translations
+
+[welcome]
+other = "🎉 Chào mừng bạn đến với Bot Shop!\nChọn chức năng bên dưới:"
+
+[btn_buy]
+other = "🛒 Mua tài khoản"
+
+[btn_profile]
+other = "👤 Hồ sơ"
+
+[btn_deposit]
+other = "💰 Nạp tiền"
+
+[btn_support]
+other = "🆘 Hỗ trợ"
+
+[btn_notes]
+other = "📋 Lưu ý"
+
+[btn_language]
+other = "🌐 Ngôn ngữ"
+
+[profile_info]
+other = "👤 **Hồ sơ của bạn**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👤 Username: @{{.Username}}\n💰 Số dư: **{{.Balance}} USDT**\n📅 Ngày tham gia: {{.JoinDate}}"
+
+[select_product]
+other = "🛒 Chọn loại tài khoản muốn mua:"
+
+[product_item]
+other = "{{.Name}} — {{.Price}} USDT (Còn: {{.Stock}})"
+
+[enter_quantity]
+other = "📝 Nhập số lượng muốn mua cho **{{.ProductName}}**\n💰 Giá: {{.Price}} USDT/cái\n📦 Còn hàng: {{.Stock}}"
+
+[insufficient_balance]
+other = "❌ Số dư không đủ!\nCần: {{.Required}} USDT\nSố dư: {{.Balance}} USDT\n\n💰 Vui lòng nạp thêm tiền."
+
+[out_of_stock]
+other = "❌ Hết hàng hoặc không đủ số lượng yêu cầu.\nCòn lại: {{.Available}}"
+
+[order_success]
+other = "✅ Đơn hàng #{{.OrderID}} thành công!\n\n📦 Sản phẩm: {{.ProductName}}\n🔢 Số lượng: {{.Quantity}}\n💰 Tổng: {{.Total}} USDT\n\n📄 File tài khoản đính kèm bên dưới."
+
+[deposit_instructions]
+other = "💰 **Hướng dẫn nạp tiền USDT**\n\n📋 Gửi USDT đến địa chỉ ví sau:\n\n🔗 Địa chỉ: `{{.Address}}`\n🌐 Mạng: **{{.Network}}**\n\n⚠️ **Sau khi gửi xong**, hãy gửi mã giao dịch cho bot để xác nhận.\n\n💡 Bạn có thể gửi TxID/TxHash hoặc ID giao dịch nội bộ của Binance (hiển thị trong email/lịch sử rút tiền)."
+
+[deposit_success]
+other = "✅ Nạp tiền thành công!\n\n💰 Số tiền: **{{.Amount}} USDT**\n💰 Số dư mới: **{{.NewBalance}} USDT**"
+
+[support_message]
+other = "🆘 **Hỗ trợ**\n\nLiên hệ admin: @{{.AdminUsername}}\nHoặc bấm: {{.SupportLink}}"
+
+[notes_header]
+other = "📋 **Lưu ý quan trọng**\n"
+
+[no_notes]
+other = "📋 Chưa có lưu ý nào."
+
+[language_select]
+other = "🌐 Chọn ngôn ngữ / Select language:"
+
+[language_changed]
+other = "✅ Đã đổi sang Tiếng Việt!"
+
+[invalid_input]
+other = "❌ Đầu vào không hợp lệ. Vui lòng thử lại."
+
+[error_general]
+other = "❌ Đã xảy ra lỗi. Vui lòng thử lại sau."
+
+[btn_back]
+other = "⬅️ Quay lại"
+
+[confirm_buy]
+other = "🛒 Xác nhận mua?\n\n📦 {{.ProductName}} x{{.Quantity}}\n💰 Tổng: {{.Total}} USDT\n💰 Số dư: {{.Balance}} USDT"
+
+[btn_confirm]
+other = "✅ Xác nhận"
+
+[btn_cancel]
+other = "❌ Hủy"
+
+[order_cancelled]
+other = "❌ Đơn hàng đã bị hủy."
+
+[invalid_quantity]
+other = "❌ Số lượng không hợp lệ. Vui lòng nhập số nguyên dương."
+
+[binance_not_configured]
+other = "❌ Hệ thống thanh toán chưa được cấu hình. Vui lòng liên hệ admin."
+
+[binance_api_error]
+other = "❌ Lỗi kết nối đến hệ thống thanh toán (API key không hợp lệ hoặc hết hạn). Vui lòng liên hệ admin."
+
+[deposit_txid_invalid]
+other = "❌ Mã giao dịch (TxID) không hợp lệ. Vui lòng gửi lại TxID chính xác."
+
+[deposit_txid_processing]
+other = "⏳ Đang kiểm tra giao dịch, vui lòng đợi..."
+
+[deposit_txid_already_used]
+other = "❌ Mã giao dịch (TxID) này đã được sử dụng trước đó."
+
+[deposit_txid_not_found]
+other = "❌ Không tìm thấy giao dịch với TxID này trên Binance.\nVui lòng kiểm tra lại TxID hoặc đợi giao dịch được xác nhận (có thể mất vài phút)."
+
+[deposit_txid_not_confirmed]
+other = "⏳ Giao dịch chưa được xác nhận trên blockchain. Vui lòng thử lại sau vài phút."
+
+[deposit_txid_not_usdt]
+other = "❌ Giao dịch này không phải là USDT. Vui lòng chỉ gửi USDT."
+
+[deposit_txid_wrong_address]
+other = "❌ Giao dịch này được gửi đến địa chỉ khác với địa chỉ nạp của shop."

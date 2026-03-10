@@ -1,0 +1,108 @@
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+            <h2>{{.Product.NameVI}}</h2>
+            <p style="color:#666;margin-top:4px">Quản lý tài khoản kho hàng</p>
+        </div>
+        <a href="/admin/products" class="btn" style="background:#6c757d;color:#fff">← Quay lại</a>
+    </div>
+
+    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
+    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
+
+    <!-- Stats -->
+    <div class="stats-grid" style="margin-bottom:20px">
+        <div class="stat-card">
+            <h3>Tổng cộng</h3>
+            <div class="value">{{.Total}}</div>
+        </div>
+        <div class="stat-card">
+            <h3>Còn trống</h3>
+            <div class="value" style="color:#28a745">{{.Available}}</div>
+        </div>
+        <div class="stat-card">
+            <h3>Đã bán</h3>
+            <div class="value" style="color:#dc3545">{{.Used}}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Section -->
+<div class="card">
+    <h3 style="margin-bottom:12px">📤 Upload tài khoản</h3>
+    <form method="POST" action="/admin/products/{{.Product.ID}}/accounts/upload" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Upload file (mỗi dòng 1 tài khoản)</label>
+            <input type="file" name="accounts_file" accept=".txt,.csv">
+        </div>
+        <div class="form-group">
+            <label>Hoặc paste tài khoản (mỗi dòng 1 tài khoản)</label>
+            <textarea name="accounts_text" rows="6" placeholder="email1:pass1:info&#10;email2:pass2:info&#10;..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload</button>
+    </form>
+</div>
+
+<!-- Account List Section -->
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3>📋 Danh sách tài khoản</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+            <!-- Filter -->
+            <div style="display:flex;gap:4px">
+                <a href="/admin/products/{{.Product.ID}}/accounts?filter=all"
+                   class="btn btn-sm {{if eq .Filter "all"}}btn-primary{{else}}btn-outline{{end}}">Tất cả</a>
+                <a href="/admin/products/{{.Product.ID}}/accounts?filter=available"
+                   class="btn btn-sm {{if eq .Filter "available"}}btn-success{{else}}btn-outline{{end}}">Còn trống</a>
+                <a href="/admin/products/{{.Product.ID}}/accounts?filter=used"
+                   class="btn btn-sm {{if eq .Filter "used"}}btn-danger{{else}}btn-outline{{end}}">Đã bán</a>
+            </div>
+            {{if gt .Available 0}}
+            <form method="POST" action="/admin/products/{{.Product.ID}}/accounts/clear"
+                  onsubmit="return confirm('Xóa tất cả {{.Available}} tài khoản chưa bán? Không thể hoàn tác!')">
+                <button class="btn btn-danger btn-sm">🗑 Xóa tất cả chưa bán</button>
+            </form>
+            {{end}}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:60px">ID</th>
+                <th>Dữ liệu tài khoản</th>
+                <th style="width:100px">Trạng thái</th>
+                <th style="width:100px">Order ID</th>
+                <th style="width:140px">Ngày thêm</th>
+                <th style="width:80px">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Accounts}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td><code style="background:#f4f4f4;padding:2px 6px;border-radius:3px;font-size:13px;word-break:break-all">{{.AccountData}}</code></td>
+                <td>
+                    {{if .Used}}
+                    <span class="badge badge-danger">Đã bán</span>
+                    {{else}}
+                    <span class="badge badge-success">Còn trống</span>
+                    {{end}}
+                </td>
+                <td>{{if .Used}}#{{.OrderID}}{{else}}-{{end}}</td>
+                <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                <td>
+                    {{if not .Used}}
+                    <form method="POST" action="/admin/products/{{$.Product.ID}}/accounts/{{.ID}}/delete"
+                          style="display:inline" onsubmit="return confirm('Xóa tài khoản này?')">
+                        <button class="btn btn-danger btn-sm">Xóa</button>
+                    </form>
+                    {{end}}
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="6" style="text-align:center;color:#999;padding:24px">Chưa có tài khoản nào</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

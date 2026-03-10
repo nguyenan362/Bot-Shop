@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: botshop
+      POSTGRES_PASSWORD: botshop_pass
+      POSTGRES_DB: botshop
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botshop -d botshop"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    expose:
+      - "8080"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_ADDR: redis:6379
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http app:8080 --domain=${NGROK_DOMAIN}
+    ports:
+      - "127.0.0.1:4040:4040"
+
+volumes:
+  pgdata:
+  redisdata:
