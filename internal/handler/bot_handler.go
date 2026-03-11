@@ -239,7 +239,7 @@ func (h *BotHandler) handleDepositPrompt(ctx context.Context, chatID int64, tele
 func (h *BotHandler) handleSupport(ctx context.Context, chatID int64, lang string) {
 	adminUsername := "admin"
 	if len(h.cfg.AdminTeleIDs) > 0 {
-		adminUsername = "start2377" // Would need to resolve username from tele_id
+		adminUsername = "startshop666" // Would need to resolve username from tele_id
 	}
 
 	text := i18n.T(lang, "support_message", map[string]interface{}{
