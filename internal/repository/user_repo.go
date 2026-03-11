@@ -32,9 +32,9 @@ func (r *UserRepo) Upsert(ctx context.Context, teleID int64, username string, is
 func (r *UserRepo) GetByID(ctx context.Context, teleID int64) (*models.User, error) {
 	u := &models.User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT tele_id, username, balance_usdt, language, join_date, is_admin
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
 		FROM users WHERE tele_id = $1
-	`, teleID).Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.JoinDate, &u.IsAdmin)
+	`, teleID).Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (r *UserRepo) DeductBalance(ctx context.Context, teleID int64, amount decim
 // ListAll returns all users for admin.
 func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT tele_id, username, balance_usdt, language, join_date, is_admin
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
 		FROM users ORDER BY join_date DESC
 	`)
 	if err != nil {
@@ -84,10 +84,42 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.JoinDate, &u.IsAdmin); err != nil {
+		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+// UserLang holds a user's tele_id, language and timezone for broadcast.
+type UserLang struct {
+	TeleID   int64
+	Language string
+	Timezone string
+}
+
+// ListAllUserLangs returns tele_id, language and timezone for all users (for broadcast).
+func (r *UserRepo) ListAllUserLangs(ctx context.Context) ([]UserLang, error) {
+	rows, err := r.pool.Query(ctx, `SELECT tele_id, language, timezone FROM users`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []UserLang
+	for rows.Next() {
+		var u UserLang
+		if err := rows.Scan(&u.TeleID, &u.Language, &u.Timezone); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// UpdateTimezone sets user timezone.
+func (r *UserRepo) UpdateTimezone(ctx context.Context, teleID int64, tz string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET timezone = $2 WHERE tele_id = $1`, teleID, tz)
+	return err
 }

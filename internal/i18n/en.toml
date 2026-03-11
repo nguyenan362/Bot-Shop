@@ -116,3 +116,15 @@ other = "❌ This transaction is not USDT. Please only send USDT."
 
 [deposit_txid_wrong_address]
 other = "❌ This transaction was sent to a different address than the shop's deposit address."
+
+[daily_product_header]
+other = "📢 **Today's Product Update**\n"
+
+[daily_product_item]
+other = "{{.Index}}. {{.Name}} — 💰 {{.Price}} USDT — 📦 Stock: {{.Stock}}"
+
+[daily_product_footer]
+other = "\n🛒 Press **Buy Account** to place an order!"
+
+[daily_no_products]
+other = "📢 No products available at the moment. Please check back later!"

@@ -12,6 +12,7 @@ type User struct {
 	Username    string          `json:"username"`
 	BalanceUSDT decimal.Decimal `json:"balance_usdt"`
 	Language    string          `json:"language"`
+	Timezone    string          `json:"timezone"`
 	JoinDate    time.Time       `json:"join_date"`
 	IsAdmin     bool            `json:"is_admin"`
 }

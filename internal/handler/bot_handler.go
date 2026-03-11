@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
+	"github.com/nguyenan362/bot-shop-go/internal/auth"
 	"github.com/nguyenan362/bot-shop-go/internal/config"
 	"github.com/nguyenan362/bot-shop-go/internal/i18n"
+	"github.com/nguyenan362/bot-shop-go/internal/models"
 	"github.com/nguyenan362/bot-shop-go/internal/service"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
@@ -46,6 +49,12 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	isAdmin := h.cfg.IsAdmin(teleID)
 	if err := h.svc.UserRepo.Upsert(ctx, teleID, username, isAdmin); err != nil {
 		log.Error().Err(err).Int64("user", teleID).Msg("upsert user failed")
+	}
+
+	// Auto-detect and save timezone from Telegram language_code
+	if msg.From.LanguageCode != "" {
+		tz := detectTimezone(msg.From.LanguageCode)
+		_ = h.svc.UserRepo.UpdateTimezone(ctx, teleID, tz)
 	}
 
 	// Get user language
@@ -493,10 +502,17 @@ func (h *BotHandler) handleCancel(ctx context.Context, cb *telego.CallbackQuery,
 	h.bot.SendMessage(ctx, params)
 }
 
-// sendAdminLink sends admin panel link.
+// sendAdminLink sends admin panel link with a secure, short-lived JWT token.
 func (h *BotHandler) sendAdminLink(ctx context.Context, chatID int64, teleID int64) {
-	// Generate a JWT token for admin access
-	link := fmt.Sprintf("%s/admin?tele_id=%d", h.cfg.WebhookURL, teleID)
+	// Generate a short-lived login token (1 minute)
+	token, err := auth.GenerateLoginToken(teleID, h.cfg.AdminJWTSecret, 1*time.Minute)
+	if err != nil {
+		log.Error().Err(err).Msg("generate admin login token failed")
+		h.sendError(ctx, chatID, "en")
+		return
+	}
+
+	link := fmt.Sprintf("%s/admin/login?token=%s", h.cfg.WebhookURL, token)
 	text := fmt.Sprintf("🔧 Admin Panel:\n%s", link)
 
 	params := tu.Message(tu.ID(chatID), text)
@@ -605,4 +621,125 @@ func (h *BotHandler) handleTxIDInput(ctx context.Context, msg *telego.Message, t
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Msg("send deposit success failed")
 	}
+}
+
+// StartDailyProductBroadcast runs a background loop that checks every minute
+// and sends product updates to users whose local time is 9:00 AM or 9:00 PM.
+func (h *BotHandler) StartDailyProductBroadcast(ctx context.Context) {
+	log.Info().Msg("product broadcast scheduler started (9 AM & 9 PM per user timezone)")
+
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			h.broadcastProducts(ctx)
+		case <-ctx.Done():
+			log.Info().Msg("product broadcast stopped")
+			return
+		}
+	}
+}
+
+// broadcastProducts sends the active product list to users whose local time is 9:00 AM or 9:00 PM.
+func (h *BotHandler) broadcastProducts(ctx context.Context) {
+	products, err := h.svc.ProductRepo.ListActive(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("broadcast: failed to list products")
+		return
+	}
+
+	users, err := h.svc.UserRepo.ListAllUserLangs(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("broadcast: failed to list users")
+		return
+	}
+
+	if len(users) == 0 {
+		return
+	}
+
+	nowUTC := time.Now().UTC()
+	msgCache := make(map[string]string)
+	sentCount := 0
+
+	for _, u := range users {
+		tz := u.Timezone
+		if tz == "" {
+			tz = defaultTimezone
+		}
+
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			loc, _ = time.LoadLocation(defaultTimezone)
+		}
+
+		userTime := nowUTC.In(loc)
+		hour := userTime.Hour()
+		minute := userTime.Minute()
+
+		// Only send if user's local time is 9:00 AM (hour=9) or 9:00 PM (hour=21)
+		// We check minute=0 because ticker fires every minute
+		if (hour != 9 && hour != 21) || minute != 0 {
+			continue
+		}
+
+		// Deduplicate: check Redis to avoid double-send within the same slot
+		slot := fmt.Sprintf("broadcast:%d:%s:%d", u.TeleID, userTime.Format("2006-01-02"), hour)
+		locked, _ := h.svc.Redis.SetNX(ctx, slot, "1", 2*time.Hour).Result()
+		if !locked {
+			continue // already sent for this slot
+		}
+
+		lang := u.Language
+		if lang == "" {
+			lang = "vi"
+		}
+
+		text, ok := msgCache[lang]
+		if !ok {
+			text = h.buildProductListMessage(products, lang)
+			msgCache[lang] = text
+		}
+
+		params := tu.Message(tu.ID(u.TeleID), text).WithParseMode(telego.ModeMarkdown)
+		if _, err := h.bot.SendMessage(ctx, params); err != nil {
+			log.Warn().Err(err).Int64("user", u.TeleID).Msg("broadcast: failed to send")
+		} else {
+			sentCount++
+		}
+
+		// Small delay to avoid hitting Telegram rate limits
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if sentCount > 0 {
+		log.Info().Int("sent", sentCount).Msg("product broadcast completed")
+	}
+}
+
+// buildProductListMessage builds a formatted product list message for a given language.
+func (h *BotHandler) buildProductListMessage(products []models.Product, lang string) string {
+	if len(products) == 0 {
+		return i18n.TSimple(lang, "daily_no_products")
+	}
+
+	var sb strings.Builder
+	sb.WriteString(i18n.TSimple(lang, "daily_product_header"))
+	sb.WriteString("\n")
+
+	for idx, p := range products {
+		line := i18n.T(lang, "daily_product_item", map[string]interface{}{
+			"Index": idx + 1,
+			"Name":  p.Name(lang),
+			"Price": p.PriceUSDT.StringFixed(2),
+			"Stock": p.Stock,
+		})
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(i18n.TSimple(lang, "daily_product_footer"))
+	return sb.String()
 }

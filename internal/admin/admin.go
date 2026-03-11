@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nguyenan362/bot-shop-go/internal/auth"
 	"github.com/nguyenan362/bot-shop-go/internal/binance"
 	"github.com/nguyenan362/bot-shop-go/internal/config"
 	"github.com/nguyenan362/bot-shop-go/internal/models"
@@ -96,39 +96,44 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 // ---- Auth ----
 
 func (h *AdminHandler) loginPage(c *fiber.Ctx) error {
-	// Check if coming from bot with tele_id
-	teleIDStr := c.Query("tele_id")
-	if teleIDStr != "" {
-		teleID, err := strconv.ParseInt(teleIDStr, 10, 64)
-		if err == nil && h.cfg.IsAdmin(teleID) {
-			token := h.generateJWT(teleID)
-			c.Cookie(&fiber.Cookie{
-				Name:     "admin_token",
-				Value:    token,
-				HTTPOnly: true,
-				Expires:  time.Now().Add(time.Duration(h.cfg.AdminSessionHrs) * time.Hour),
-			})
-			return c.Redirect("/admin/dashboard")
+	// Check if coming from bot with a signed JWT token
+	tokenStr := c.Query("token")
+	if tokenStr != "" {
+		teleID, err := auth.ValidateLoginToken(tokenStr, h.cfg.AdminJWTSecret)
+		if err != nil {
+			log.Warn().Err(err).Msg("invalid admin login token")
+			return c.Render("admin/login", fiber.Map{"Error": "Invalid or expired login link."})
 		}
+
+		if !h.cfg.IsAdmin(teleID) {
+			return c.Render("admin/login", fiber.Map{"Error": "You are not authorized as admin."})
+		}
+
+		// Generate a session token (longer-lived) for the cookie
+		sessionToken, err := auth.GenerateSessionToken(teleID, h.cfg.AdminJWTSecret, h.cfg.AdminSessionHrs)
+		if err != nil {
+			log.Error().Err(err).Msg("generate session token failed")
+			return c.Render("admin/login", fiber.Map{"Error": "Internal error. Please try again."})
+		}
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "admin_token",
+			Value:    sessionToken,
+			HTTPOnly: true,
+			Secure:   h.cfg.Env == "production",
+			SameSite: "Lax",
+			Expires:  time.Now().Add(time.Duration(h.cfg.AdminSessionHrs) * time.Hour),
+		})
+		return c.Redirect("/admin/dashboard")
 	}
+
 	return c.Render("admin/login", fiber.Map{})
 }
 
 func (h *AdminHandler) loginSubmit(c *fiber.Ctx) error {
-	teleIDStr := c.FormValue("tele_id")
-	teleID, err := strconv.ParseInt(teleIDStr, 10, 64)
-	if err != nil || !h.cfg.IsAdmin(teleID) {
-		return c.Render("admin/login", fiber.Map{"Error": "Invalid Telegram ID"})
-	}
-
-	token := h.generateJWT(teleID)
-	c.Cookie(&fiber.Cookie{
-		Name:     "admin_token",
-		Value:    token,
-		HTTPOnly: true,
-		Expires:  time.Now().Add(time.Duration(h.cfg.AdminSessionHrs) * time.Hour),
-	})
-	return c.Redirect("/admin/dashboard")
+	// Direct login via form is no longer allowed.
+	// Admin must use the /admin command in the Telegram bot to receive a secure login link.
+	return c.Render("admin/login", fiber.Map{"Error": "Direct login is disabled. Please use the /admin command in the Telegram bot to get a secure login link."})
 }
 
 func (h *AdminHandler) authMiddleware(c *fiber.Ctx) error {
@@ -137,40 +142,24 @@ func (h *AdminHandler) authMiddleware(c *fiber.Ctx) error {
 		return c.Redirect("/admin/login")
 	}
 
-	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-		return []byte(h.cfg.AdminJWTSecret), nil
-	})
-	if err != nil || !token.Valid {
+	teleID, err := auth.ValidateSessionToken(tokenStr, h.cfg.AdminJWTSecret)
+	if err != nil {
+		// Clear invalid/expired cookie
+		c.Cookie(&fiber.Cookie{
+			Name:     "admin_token",
+			Value:    "",
+			HTTPOnly: true,
+			Expires:  time.Now().Add(-1 * time.Hour),
+		})
 		return c.Redirect("/admin/login")
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return c.Redirect("/admin/login")
-	}
-
-	teleIDf, ok := claims["tele_id"].(float64)
-	if !ok {
-		return c.Redirect("/admin/login")
-	}
-
-	teleID := int64(teleIDf)
 	if !h.cfg.IsAdmin(teleID) {
 		return c.Redirect("/admin/login")
 	}
 
 	c.Locals("admin_tele_id", teleID)
 	return c.Next()
-}
-
-func (h *AdminHandler) generateJWT(teleID int64) string {
-	claims := jwt.MapClaims{
-		"tele_id": teleID,
-		"exp":     time.Now().Add(time.Duration(h.cfg.AdminSessionHrs) * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, _ := token.SignedString([]byte(h.cfg.AdminJWTSecret))
-	return signed
 }
 
 // ---- Dashboard ----

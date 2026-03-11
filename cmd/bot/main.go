@@ -138,6 +138,10 @@ func main() {
 	})
 	log.Info().Msg("binance deposit poller started")
 
+	// ---- Daily Product Broadcast (background) ----
+	go botHandler.StartDailyProductBroadcast(ctx)
+	log.Info().Msg("daily product broadcast initialized")
+
 	// ---- Admin Panel Routes ----
 	adminHandler := admin.NewAdminHandler(cfg, pool, productRepo, orderRepo, depositRepo, noteRepo, userRepo)
 	adminHandler.RegisterRoutes(app)
@@ -197,6 +201,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 	migrationFiles := []string{
 		"migrations/001_init.sql",
 		"migrations/002_binance_deposit_update.sql",
+		"migrations/003_user_timezone.sql",
 	}
 
 	for _, file := range migrationFiles {

@@ -116,3 +116,15 @@ other = "❌ Giao dịch này không phải là USDT. Vui lòng chỉ gửi USDT
 
 [deposit_txid_wrong_address]
 other = "❌ Giao dịch này được gửi đến địa chỉ khác với địa chỉ nạp của shop."
+
+[daily_product_header]
+other = "📢 **Cập nhật sản phẩm hôm nay**\n"
+
+[daily_product_item]
+other = "{{.Index}}. {{.Name}} — 💰 {{.Price}} USDT — 📦 Còn: {{.Stock}}"
+
+[daily_product_footer]
+other = "\n🛒 Nhấn nút **Mua tài khoản** để đặt hàng!"
+
+[daily_no_products]
+other = "📢 Hiện tại chưa có sản phẩm nào. Vui lòng quay lại sau!"
