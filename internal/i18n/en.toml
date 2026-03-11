@@ -1,5 +1,8 @@
 # English translations
 
+[start_greeting]
+other = "👋 Hello {{.Name}}!\n\nPlease select your language:"
+
 [welcome]
 other = "🎉 Welcome to Bot Shop!\nSelect a function below:"
 

@@ -55,7 +55,7 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 
 	// Check for /start command
 	if text == "/start" {
-		h.sendMainMenu(ctx, msg.Chat.ID, lang)
+		h.sendStartGreeting(ctx, msg.Chat.ID, msg.From.FirstName, lang)
 		return
 	}
 
@@ -82,9 +82,6 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	case i18n.TSimple("vi", "btn_notes"), i18n.TSimple("en", "btn_notes"):
 		h.handleNotes(ctx, msg.Chat.ID, lang)
 		return
-	case i18n.TSimple("vi", "btn_language"), i18n.TSimple("en", "btn_language"):
-		h.handleLanguageMenu(ctx, msg.Chat.ID, lang)
-		return
 	}
 
 	// Check user state (awaiting input)
@@ -102,7 +99,29 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	h.sendMainMenu(ctx, msg.Chat.ID, lang)
 }
 
-// sendMainMenu sends the 6-button main menu.
+// sendStartGreeting sends a greeting with language selection inline buttons.
+func (h *BotHandler) sendStartGreeting(ctx context.Context, chatID int64, firstName string, lang string) {
+	text := i18n.T(lang, "start_greeting", map[string]interface{}{
+		"Name": firstName,
+	})
+
+	markup := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("🇻🇳 Tiếng Việt").WithCallbackData("lang:vi"),
+			tu.InlineKeyboardButton("🇬🇧 English").WithCallbackData("lang:en"),
+		),
+	)
+
+	params := tu.Message(tu.ID(chatID), text).
+		WithReplyMarkup(markup).
+		WithParseMode(telego.ModeMarkdown)
+
+	if _, err := h.bot.SendMessage(ctx, params); err != nil {
+		log.Error().Err(err).Msg("send start greeting failed")
+	}
+}
+
+// sendMainMenu sends the 5-button main menu.
 func (h *BotHandler) sendMainMenu(ctx context.Context, chatID int64, lang string) {
 	keyboard := tu.Keyboard(
 		tu.KeyboardRow(
@@ -114,7 +133,6 @@ func (h *BotHandler) sendMainMenu(ctx context.Context, chatID int64, lang string
 		),
 		tu.KeyboardRow(
 			tu.KeyboardButton(i18n.TSimple(lang, "btn_notes")),
-			tu.KeyboardButton(i18n.TSimple(lang, "btn_language")),
 		),
 	).WithResizeKeyboard()
 

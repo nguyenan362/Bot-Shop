@@ -1,5 +1,8 @@
 # Vietnamese translations
 
+[start_greeting]
+other = "👋 Xin chào {{.Name}}!\n\nVui lòng chọn ngôn ngữ:"
+
 [welcome]
 other = "🎉 Chào mừng bạn đến với Bot Shop!\nChọn chức năng bên dưới:"
 

@@ -147,6 +147,18 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Unix()})
 	})
 
+	// ---- Set Bot Commands (Menu button) ----
+	err = bot.SetMyCommands(ctx, &telego.SetMyCommandsParams{
+		Commands: []telego.BotCommand{
+			{Command: "start", Description: "start a conversation"},
+		},
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to set bot commands")
+	} else {
+		log.Info().Msg("bot commands set")
+	}
+
 	// ---- Set Webhook ----
 	if cfg.WebhookURL != "" {
 		webhookURL := cfg.WebhookURL + "/webhook"
