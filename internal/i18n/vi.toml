@@ -4,7 +4,7 @@
 other = "👋 Xin chào {{.Name}}!\n\nVui lòng chọn ngôn ngữ:"
 
 [welcome]
-other = "🎉 Chào mừng bạn đến với Bot Shop!\nChọn chức năng bên dưới:"
+other = "🎉 Chào mừng bạn đến với Start Shop!\nChọn chức năng bên dưới:"
 
 [btn_buy]
 other = "🛒 Mua tài khoản"
@@ -19,7 +19,7 @@ other = "💰 Nạp tiền"
 other = "🆘 Hỗ trợ"
 
 [btn_notes]
-other = "📋 Lưu ý"
+other = "📋 Hướng dẫn sử dụng"
 
 [btn_language]
 other = "🌐 Ngôn ngữ"

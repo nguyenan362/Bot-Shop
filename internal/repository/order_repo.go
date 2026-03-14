@@ -57,8 +57,10 @@ func (r *OrderRepo) ListByUser(ctx context.Context, teleID int64) ([]models.Orde
 // ListAll returns all orders (admin).
 func (r *OrderRepo) ListAll(ctx context.Context, limit int) ([]models.Order, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, user_tele_id, product_id, quantity, total_usdt, status, created_at
-		FROM orders ORDER BY created_at DESC LIMIT $1
+		SELECT o.id, o.user_tele_id, COALESCE(u.username, ''), o.product_id, o.quantity, o.total_usdt, o.status, o.created_at
+		FROM orders o
+		LEFT JOIN users u ON u.tele_id = o.user_tele_id
+		ORDER BY o.created_at DESC LIMIT $1
 	`, limit)
 	if err != nil {
 		return nil, err
@@ -68,7 +70,36 @@ func (r *OrderRepo) ListAll(ctx context.Context, limit int) ([]models.Order, err
 	var orders []models.Order
 	for rows.Next() {
 		var o models.Order
-		if err := rows.Scan(&o.ID, &o.UserTeleID, &o.ProductID, &o.Quantity, &o.TotalUSDT, &o.Status, &o.CreatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.UserTeleID, &o.Username, &o.ProductID, &o.Quantity, &o.TotalUSDT, &o.Status, &o.CreatedAt); err != nil {
+			return nil, err
+		}
+		orders = append(orders, o)
+	}
+	return orders, nil
+}
+
+// Search returns filtered orders (admin).
+func (r *OrderRepo) Search(ctx context.Context, keyword string, limit int) ([]models.Order, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT o.id, o.user_tele_id, COALESCE(u.username, ''), o.product_id, o.quantity, o.total_usdt, o.status, o.created_at
+		FROM orders o
+		LEFT JOIN users u ON u.tele_id = o.user_tele_id
+		WHERE CAST(o.id AS TEXT) ILIKE '%' || $1 || '%'
+		   OR CAST(o.user_tele_id AS TEXT) ILIKE '%' || $1 || '%'
+		   OR COALESCE(u.username, '') ILIKE '%' || $1 || '%'
+		   OR CAST(o.product_id AS TEXT) ILIKE '%' || $1 || '%'
+		   OR o.status ILIKE '%' || $1 || '%'
+		ORDER BY o.created_at DESC LIMIT $2
+	`, keyword, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var o models.Order
+		if err := rows.Scan(&o.ID, &o.UserTeleID, &o.Username, &o.ProductID, &o.Quantity, &o.TotalUSDT, &o.Status, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		orders = append(orders, o)
@@ -138,9 +169,11 @@ func (r *DepositRepo) GetByTxID(ctx context.Context, txID string) (*models.Depos
 // ListAll returns recent deposits (admin).
 func (r *DepositRepo) ListAll(ctx context.Context, limit int) ([]models.Deposit, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, user_tele_id, COALESCE(tx_id,''), COALESCE(merchant_trade_no,''), 
-		       amount_usdt, status, COALESCE(network,''), COALESCE(pay_url,''), created_at, paid_at
-		FROM deposits ORDER BY created_at DESC LIMIT $1
+		SELECT d.id, d.user_tele_id, COALESCE(u.username,''), COALESCE(d.tx_id,''), COALESCE(d.merchant_trade_no,''), 
+		       d.amount_usdt, d.status, COALESCE(d.network,''), COALESCE(d.pay_url,''), d.created_at, d.paid_at
+		FROM deposits d
+		LEFT JOIN users u ON u.tele_id = d.user_tele_id
+		ORDER BY d.created_at DESC LIMIT $1
 	`, limit)
 	if err != nil {
 		return nil, err
@@ -150,7 +183,40 @@ func (r *DepositRepo) ListAll(ctx context.Context, limit int) ([]models.Deposit,
 	var deposits []models.Deposit
 	for rows.Next() {
 		var d models.Deposit
-		if err := rows.Scan(&d.ID, &d.UserTeleID, &d.TxID, &d.MerchantTradeNo, &d.AmountUSDT,
+		if err := rows.Scan(&d.ID, &d.UserTeleID, &d.Username, &d.TxID, &d.MerchantTradeNo, &d.AmountUSDT,
+			&d.Status, &d.Network, &d.PayURL, &d.CreatedAt, &d.PaidAt); err != nil {
+			return nil, err
+		}
+		deposits = append(deposits, d)
+	}
+	return deposits, nil
+}
+
+// Search returns filtered deposits (admin).
+func (r *DepositRepo) Search(ctx context.Context, keyword string, limit int) ([]models.Deposit, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT d.id, d.user_tele_id, COALESCE(u.username,''), COALESCE(d.tx_id,''), COALESCE(d.merchant_trade_no,''), 
+		       d.amount_usdt, d.status, COALESCE(d.network,''), COALESCE(d.pay_url,''), d.created_at, d.paid_at
+		FROM deposits d
+		LEFT JOIN users u ON u.tele_id = d.user_tele_id
+		WHERE CAST(d.id AS TEXT) ILIKE '%' || $1 || '%'
+		   OR CAST(d.user_tele_id AS TEXT) ILIKE '%' || $1 || '%'
+		   OR COALESCE(u.username, '') ILIKE '%' || $1 || '%'
+		   OR COALESCE(d.tx_id, '') ILIKE '%' || $1 || '%'
+		   OR COALESCE(d.merchant_trade_no, '') ILIKE '%' || $1 || '%'
+		   OR COALESCE(d.network, '') ILIKE '%' || $1 || '%'
+		   OR d.status ILIKE '%' || $1 || '%'
+		ORDER BY d.created_at DESC LIMIT $2
+	`, keyword, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deposits []models.Deposit
+	for rows.Next() {
+		var d models.Deposit
+		if err := rows.Scan(&d.ID, &d.UserTeleID, &d.Username, &d.TxID, &d.MerchantTradeNo, &d.AmountUSDT,
 			&d.Status, &d.Network, &d.PayURL, &d.CreatedAt, &d.PaidAt); err != nil {
 			return nil, err
 		}

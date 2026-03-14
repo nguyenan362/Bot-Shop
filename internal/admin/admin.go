@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,7 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	// Orders & Users
 	admin.Get("/orders", h.listOrders)
 	admin.Get("/users", h.listUsers)
+	admin.Post("/users/:tele_id/toggle-admin", h.toggleUserAdmin)
 	admin.Get("/deposits", h.listDeposits)
 
 	// Binance Config
@@ -102,18 +104,18 @@ func (h *AdminHandler) loginPage(c *fiber.Ctx) error {
 		teleID, err := auth.ValidateLoginToken(tokenStr, h.cfg.AdminJWTSecret)
 		if err != nil {
 			log.Warn().Err(err).Msg("invalid admin login token")
-			return c.Render("admin/login", fiber.Map{"Error": "Invalid or expired login link."})
+			return c.Render("admin/login", fiber.Map{"Error": "Liên kết đăng nhập không hợp lệ hoặc đã hết hạn."})
 		}
 
-		if !h.cfg.IsAdmin(teleID) {
-			return c.Render("admin/login", fiber.Map{"Error": "You are not authorized as admin."})
+		if !h.hasAdminAccess(c.Context(), teleID) {
+			return c.Render("admin/login", fiber.Map{"Error": "Bạn không có quyền truy cập quản trị."})
 		}
 
 		// Generate a session token (longer-lived) for the cookie
 		sessionToken, err := auth.GenerateSessionToken(teleID, h.cfg.AdminJWTSecret, h.cfg.AdminSessionHrs)
 		if err != nil {
 			log.Error().Err(err).Msg("generate session token failed")
-			return c.Render("admin/login", fiber.Map{"Error": "Internal error. Please try again."})
+			return c.Render("admin/login", fiber.Map{"Error": "Lỗi hệ thống. Vui lòng thử lại."})
 		}
 
 		c.Cookie(&fiber.Cookie{
@@ -133,7 +135,7 @@ func (h *AdminHandler) loginPage(c *fiber.Ctx) error {
 func (h *AdminHandler) loginSubmit(c *fiber.Ctx) error {
 	// Direct login via form is no longer allowed.
 	// Admin must use the /admin command in the Telegram bot to receive a secure login link.
-	return c.Render("admin/login", fiber.Map{"Error": "Direct login is disabled. Please use the /admin command in the Telegram bot to get a secure login link."})
+	return c.Render("admin/login", fiber.Map{"Error": "Đăng nhập trực tiếp đã bị tắt. Vui lòng dùng lệnh /admin trong bot Telegram để nhận link đăng nhập an toàn."})
 }
 
 func (h *AdminHandler) authMiddleware(c *fiber.Ctx) error {
@@ -154,12 +156,25 @@ func (h *AdminHandler) authMiddleware(c *fiber.Ctx) error {
 		return c.Redirect("/admin/login")
 	}
 
-	if !h.cfg.IsAdmin(teleID) {
+	if !h.hasAdminAccess(c.Context(), teleID) {
 		return c.Redirect("/admin/login")
 	}
 
 	c.Locals("admin_tele_id", teleID)
 	return c.Next()
+}
+
+func (h *AdminHandler) hasAdminAccess(ctx context.Context, teleID int64) bool {
+	if h.cfg.IsAdmin(teleID) {
+		return true
+	}
+
+	user, err := h.userRepo.GetByID(ctx, teleID)
+	if err != nil {
+		return false
+	}
+
+	return user.IsAdmin
 }
 
 // ---- Dashboard ----
@@ -172,7 +187,7 @@ func (h *AdminHandler) dashboard(c *fiber.Ctx) error {
 	}
 
 	return c.Render("admin/dashboard", fiber.Map{
-		"Title": "Dashboard",
+		"Title": "Tổng quan",
 		"Stats": stats,
 	}, "partials/base")
 }
@@ -182,17 +197,17 @@ func (h *AdminHandler) dashboard(c *fiber.Ctx) error {
 func (h *AdminHandler) listProducts(c *fiber.Ctx) error {
 	products, err := h.productRepo.ListAll(c.Context())
 	if err != nil {
-		return c.Status(500).SendString("Error loading products")
+		return c.Status(500).SendString("Lỗi tải danh sách sản phẩm")
 	}
 	return c.Render("admin/products", fiber.Map{
-		"Title":    "Products",
+		"Title":    "Sản phẩm",
 		"Products": products,
 	}, "partials/base")
 }
 
 func (h *AdminHandler) newProduct(c *fiber.Ctx) error {
 	return c.Render("admin/product_form", fiber.Map{
-		"Title":  "New Product",
+		"Title":  "Thêm sản phẩm",
 		"Action": "/admin/products/new",
 	}, "partials/base")
 }
@@ -212,7 +227,7 @@ func (h *AdminHandler) createProduct(c *fiber.Ctx) error {
 
 	if err := h.productRepo.Create(c.Context(), p); err != nil {
 		return c.Render("admin/product_form", fiber.Map{
-			"Title":   "New Product",
+			"Title":   "Thêm sản phẩm",
 			"Action":  "/admin/products/new",
 			"Error":   err.Error(),
 			"Product": p,
@@ -225,10 +240,10 @@ func (h *AdminHandler) editProduct(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	p, err := h.productRepo.GetByID(c.Context(), id)
 	if err != nil {
-		return c.Status(404).SendString("Product not found")
+		return c.Status(404).SendString("Không tìm thấy sản phẩm")
 	}
 	return c.Render("admin/product_form", fiber.Map{
-		"Title":   "Edit Product",
+		"Title":   "Sửa sản phẩm",
 		"Action":  "/admin/products/" + c.Params("id") + "/edit",
 		"Product": p,
 	}, "partials/base")
@@ -241,7 +256,7 @@ func (h *AdminHandler) updateProduct(c *fiber.Ctx) error {
 	// Get current product to preserve stock
 	current, err := h.productRepo.GetByID(c.Context(), id)
 	if err != nil {
-		return c.Status(404).SendString("Product not found")
+		return c.Status(404).SendString("Không tìm thấy sản phẩm")
 	}
 
 	p := &models.Product{
@@ -257,7 +272,7 @@ func (h *AdminHandler) updateProduct(c *fiber.Ctx) error {
 
 	if err := h.productRepo.Update(c.Context(), p); err != nil {
 		return c.Render("admin/product_form", fiber.Map{
-			"Title":   "Edit Product",
+			"Title":   "Sửa sản phẩm",
 			"Action":  "/admin/products/" + c.Params("id") + "/edit",
 			"Error":   err.Error(),
 			"Product": p,
@@ -269,7 +284,7 @@ func (h *AdminHandler) updateProduct(c *fiber.Ctx) error {
 func (h *AdminHandler) deleteProduct(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := h.productRepo.Delete(c.Context(), id); err != nil {
-		return c.Status(500).SendString("Error deleting product")
+		return c.Status(500).SendString("Lỗi khi xóa sản phẩm")
 	}
 	return c.Redirect("/admin/products")
 }
@@ -278,7 +293,7 @@ func (h *AdminHandler) productAccounts(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	product, err := h.productRepo.GetByID(c.Context(), id)
 	if err != nil {
-		return c.Status(404).SendString("Product not found")
+		return c.Status(404).SendString("Không tìm thấy sản phẩm")
 	}
 
 	filter := c.Query("filter", "all") // all, available, used
@@ -287,7 +302,7 @@ func (h *AdminHandler) productAccounts(c *fiber.Ctx) error {
 	used, _ := h.productRepo.CountUsed(c.Context(), id)
 
 	data := fiber.Map{
-		"Title":     "Accounts — " + product.NameVI,
+		"Title":     "Kho tài khoản — " + product.NameVI,
 		"Product":   product,
 		"Accounts":  accounts,
 		"Available": available,
@@ -317,7 +332,7 @@ func (h *AdminHandler) uploadAccounts(c *fiber.Ctx) error {
 		if err == nil {
 			f, err := file.Open()
 			if err != nil {
-				return c.Status(400).SendString("Cannot open file")
+				return c.Status(400).SendString("Không thể mở tệp")
 			}
 			defer f.Close()
 			buf := make([]byte, file.Size)
@@ -327,7 +342,7 @@ func (h *AdminHandler) uploadAccounts(c *fiber.Ctx) error {
 	}
 
 	if accountsText == "" {
-		return c.Status(400).SendString("No accounts provided")
+		return c.Status(400).SendString("Chưa có dữ liệu tài khoản")
 	}
 
 	// Parse accounts (one per line)
@@ -341,7 +356,7 @@ func (h *AdminHandler) uploadAccounts(c *fiber.Ctx) error {
 
 	count, err := h.productRepo.AddAccounts(c.Context(), id, accounts)
 	if err != nil {
-		return c.Status(500).SendString("Error adding accounts: " + err.Error())
+		return c.Status(500).SendString("Lỗi khi thêm tài khoản: " + err.Error())
 	}
 
 	return c.Redirect("/admin/products/" + c.Params("id") + "/accounts?added=" + strconv.Itoa(count))
@@ -352,7 +367,7 @@ func (h *AdminHandler) deleteAccount(c *fiber.Ctx) error {
 	accountID, _ := strconv.Atoi(c.Params("aid"))
 
 	if err := h.productRepo.DeleteAccount(c.Context(), accountID); err != nil {
-		return c.Status(400).SendString("Error: " + err.Error())
+		return c.Status(400).SendString("Lỗi: " + err.Error())
 	}
 
 	// Decrement stock
@@ -366,7 +381,7 @@ func (h *AdminHandler) clearUnusedAccounts(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	deleted, err := h.productRepo.DeleteAllUnusedAccounts(c.Context(), id)
 	if err != nil {
-		return c.Status(500).SendString("Error: " + err.Error())
+		return c.Status(500).SendString("Lỗi: " + err.Error())
 	}
 	return c.Redirect("/admin/products/" + c.Params("id") + "/accounts?deleted=" + strconv.Itoa(deleted))
 }
@@ -375,11 +390,11 @@ func (h *AdminHandler) toggleProduct(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	product, err := h.productRepo.GetByID(c.Context(), id)
 	if err != nil {
-		return c.Status(404).SendString("Product not found")
+		return c.Status(404).SendString("Không tìm thấy sản phẩm")
 	}
 	product.Active = !product.Active
 	if err := h.productRepo.Update(c.Context(), product); err != nil {
-		return c.Status(500).SendString("Error toggling product")
+		return c.Status(500).SendString("Lỗi khi đổi trạng thái sản phẩm")
 	}
 	return c.Redirect("/admin/products")
 }
@@ -389,17 +404,17 @@ func (h *AdminHandler) toggleProduct(c *fiber.Ctx) error {
 func (h *AdminHandler) listNotes(c *fiber.Ctx) error {
 	notes, err := h.noteRepo.ListAll(c.Context())
 	if err != nil {
-		return c.Status(500).SendString("Error loading notes")
+		return c.Status(500).SendString("Lỗi tải danh sách lưu ý")
 	}
 	return c.Render("admin/notes", fiber.Map{
-		"Title": "Notes",
+		"Title": "Lưu ý",
 		"Notes": notes,
 	}, "partials/base")
 }
 
 func (h *AdminHandler) newNote(c *fiber.Ctx) error {
 	return c.Render("admin/note_form", fiber.Map{
-		"Title":  "New Note",
+		"Title":  "Thêm lưu ý",
 		"Action": "/admin/notes/new",
 	}, "partials/base")
 }
@@ -412,7 +427,7 @@ func (h *AdminHandler) createNote(c *fiber.Ctx) error {
 	}
 	if err := h.noteRepo.Create(c.Context(), n); err != nil {
 		return c.Render("admin/note_form", fiber.Map{
-			"Title":  "New Note",
+			"Title":  "Thêm lưu ý",
 			"Action": "/admin/notes/new",
 			"Error":  err.Error(),
 			"Note":   n,
@@ -425,7 +440,7 @@ func (h *AdminHandler) editNote(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	notes, err := h.noteRepo.ListAll(c.Context())
 	if err != nil {
-		return c.Status(500).SendString("Error")
+		return c.Status(500).SendString("Lỗi")
 	}
 	var note *models.Note
 	for _, n := range notes {
@@ -435,10 +450,10 @@ func (h *AdminHandler) editNote(c *fiber.Ctx) error {
 		}
 	}
 	if note == nil {
-		return c.Status(404).SendString("Note not found")
+		return c.Status(404).SendString("Không tìm thấy lưu ý")
 	}
 	return c.Render("admin/note_form", fiber.Map{
-		"Title":  "Edit Note",
+		"Title":  "Sửa lưu ý",
 		"Action": "/admin/notes/" + c.Params("id") + "/edit",
 		"Note":   note,
 	}, "partials/base")
@@ -453,7 +468,7 @@ func (h *AdminHandler) updateNote(c *fiber.Ctx) error {
 		Active:    c.FormValue("active") == "on",
 	}
 	if err := h.noteRepo.Update(c.Context(), n); err != nil {
-		return c.Status(500).SendString("Error updating note")
+		return c.Status(500).SendString("Lỗi khi cập nhật lưu ý")
 	}
 	return c.Redirect("/admin/notes")
 }
@@ -461,7 +476,7 @@ func (h *AdminHandler) updateNote(c *fiber.Ctx) error {
 func (h *AdminHandler) deleteNote(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := h.noteRepo.Delete(c.Context(), id); err != nil {
-		return c.Status(500).SendString("Error deleting note")
+		return c.Status(500).SendString("Lỗi khi xóa lưu ý")
 	}
 	return c.Redirect("/admin/notes")
 }
@@ -469,39 +484,145 @@ func (h *AdminHandler) deleteNote(c *fiber.Ctx) error {
 // ---- Orders ----
 
 func (h *AdminHandler) listOrders(c *fiber.Ctx) error {
-	orders, err := h.orderRepo.ListAll(c.Context(), 100)
+	q := strings.TrimSpace(c.Query("q"))
+
+	var (
+		orders []models.Order
+		err    error
+	)
+
+	if q == "" {
+		orders, err = h.orderRepo.ListAll(c.Context(), 100)
+	} else {
+		orders, err = h.orderRepo.Search(c.Context(), q, 100)
+	}
+
 	if err != nil {
-		return c.Status(500).SendString("Error loading orders")
+		return c.Status(500).SendString("Lỗi tải danh sách đơn hàng")
 	}
 	return c.Render("admin/orders", fiber.Map{
-		"Title":  "Orders",
+		"Title":  "Đơn hàng",
 		"Orders": orders,
+		"Query":  q,
 	}, "partials/base")
 }
 
 // ---- Users ----
 
 func (h *AdminHandler) listUsers(c *fiber.Ctx) error {
-	users, err := h.userRepo.ListAll(c.Context())
-	if err != nil {
-		return c.Status(500).SendString("Error loading users")
+	q := strings.TrimSpace(c.Query("q"))
+
+	var (
+		users []models.User
+		err   error
+	)
+
+	if q == "" {
+		users, err = h.userRepo.ListAll(c.Context())
+	} else {
+		users, err = h.userRepo.Search(c.Context(), q)
 	}
-	return c.Render("admin/users", fiber.Map{
-		"Title": "Users",
+
+	if err != nil {
+		return c.Status(500).SendString("Lỗi tải danh sách người dùng")
+	}
+
+	for i := range users {
+		if h.cfg.IsAdmin(users[i].TeleID) {
+			users[i].IsAdmin = true
+		}
+	}
+
+	data := fiber.Map{
+		"Title": "Người dùng",
 		"Users": users,
-	}, "partials/base")
+		"Query": q,
+	}
+
+	if success := c.Query("success"); success != "" {
+		successText := map[string]string{
+			"granted": "Đã cấp quyền admin cho người dùng.",
+			"removed": "Đã gỡ quyền admin của người dùng.",
+		}
+		if msg, ok := successText[success]; ok {
+			data["Success"] = msg
+		}
+	}
+	if errMsg := c.Query("error"); errMsg != "" {
+		errorText := map[string]string{
+			"invalid_tele_id":     "Telegram ID không hợp lệ.",
+			"user_not_found":      "Không tìm thấy người dùng.",
+			"cannot_remove_self":  "Bạn không thể tự gỡ quyền admin của chính mình.",
+			"managed_by_env":      "Tài khoản này đang được cấu hình.",
+			"update_admin_failed": "Không thể cập nhật quyền admin.",
+		}
+		if msg, ok := errorText[errMsg]; ok {
+			data["Error"] = msg
+		}
+	}
+
+	if currentAdminID, ok := c.Locals("admin_tele_id").(int64); ok {
+		data["CurrentAdminTeleID"] = currentAdminID
+	}
+
+	return c.Render("admin/users", data, "partials/base")
+}
+
+func (h *AdminHandler) toggleUserAdmin(c *fiber.Ctx) error {
+	teleID, err := strconv.ParseInt(c.Params("tele_id"), 10, 64)
+	if err != nil {
+		return c.Redirect("/admin/users?error=invalid_tele_id")
+	}
+
+	user, err := h.userRepo.GetByID(c.Context(), teleID)
+	if err != nil {
+		return c.Redirect("/admin/users?error=user_not_found")
+	}
+
+	if h.cfg.IsAdmin(teleID) {
+		return c.Redirect("/admin/users?error=managed_by_env")
+	}
+
+	if currentAdminID, ok := c.Locals("admin_tele_id").(int64); ok {
+		if currentAdminID == teleID && user.IsAdmin {
+			return c.Redirect("/admin/users?error=cannot_remove_self")
+		}
+	}
+
+	newIsAdmin := !user.IsAdmin
+	if err := h.userRepo.SetAdmin(c.Context(), teleID, newIsAdmin); err != nil {
+		return c.Redirect("/admin/users?error=update_admin_failed")
+	}
+
+	if newIsAdmin {
+		return c.Redirect("/admin/users?success=granted")
+	}
+	return c.Redirect("/admin/users?success=removed")
 }
 
 // ---- Deposits ----
 
 func (h *AdminHandler) listDeposits(c *fiber.Ctx) error {
-	deposits, err := h.depositRepo.ListAll(c.Context(), 100)
+	q := strings.TrimSpace(c.Query("q"))
+
+	var (
+		deposits []models.Deposit
+		err      error
+	)
+
+	if q == "" {
+		deposits, err = h.depositRepo.ListAll(c.Context(), 100)
+	} else {
+		deposits, err = h.depositRepo.Search(c.Context(), q, 100)
+	}
+
 	if err != nil {
-		return c.Status(500).SendString("Error loading deposits")
+		return c.Status(500).SendString("Lỗi tải danh sách nạp tiền")
 	}
 	return c.Render("admin/deposits", fiber.Map{
-		"Title":    "Deposits",
+		"Title":    "Nạp tiền",
 		"Deposits": deposits,
+		"Query":    q,
 	}, "partials/base")
 }
 
@@ -513,7 +634,7 @@ func (h *AdminHandler) binanceConfig(c *fiber.Ctx) error {
 		bc = &models.BinanceConfig{}
 	}
 	return c.Render("admin/binance", fiber.Map{
-		"Title":  "Binance Deposit Config",
+		"Title":  "Cấu hình nạp Binance",
 		"Config": bc,
 	}, "partials/base")
 }
@@ -534,24 +655,24 @@ func (h *AdminHandler) updateBinanceConfig(c *fiber.Ctx) error {
 			errMsg := err.Error()
 			log.Warn().Str("error", errMsg).Msg("binance API key validation failed")
 			return c.Render("admin/binance", fiber.Map{
-				"Title":  "Binance Deposit Config",
+				"Title":  "Cấu hình nạp Binance",
 				"Config": bc,
-				"Error":  "Binance API key validation failed: " + errMsg + ". Please check your API key and secret.",
+				"Error":  "Xác thực API Binance thất bại: " + errMsg + ". Vui lòng kiểm tra API key và secret.",
 			}, "partials/base")
 		}
 	}
 
 	if err := h.productRepo.UpdateBinanceConfig(c.Context(), bc); err != nil {
 		return c.Render("admin/binance", fiber.Map{
-			"Title":  "Binance Deposit Config",
+			"Title":  "Cấu hình nạp Binance",
 			"Config": bc,
 			"Error":  err.Error(),
 		}, "partials/base")
 	}
 
 	return c.Render("admin/binance", fiber.Map{
-		"Title":   "Binance Deposit Config",
+		"Title":   "Cấu hình nạp Binance",
 		"Config":  bc,
-		"Success": "Configuration updated and API key validated successfully!",
+		"Success": "Đã lưu cấu hình và xác thực API key thành công!",
 	}, "partials/base")
 }

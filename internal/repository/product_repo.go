@@ -181,15 +181,18 @@ func (r *ProductRepo) CountAvailable(ctx context.Context, productID int) (int, e
 
 // ListAccounts returns all accounts for a product with optional filter.
 func (r *ProductRepo) ListAccounts(ctx context.Context, productID int, filter string) ([]models.ProductAccount, error) {
-	query := `SELECT id, product_id, account_data, used, COALESCE(order_id, 0), created_at
-	          FROM product_accounts WHERE product_id = $1`
+	query := `SELECT pa.id, pa.product_id, pa.account_data, pa.used, COALESCE(pa.order_id, 0), COALESCE(u.username, ''), COALESCE(o.user_tele_id, 0), pa.created_at
+	          FROM product_accounts pa
+	          LEFT JOIN orders o ON o.id = pa.order_id
+	          LEFT JOIN users u ON u.tele_id = o.user_tele_id
+	          WHERE pa.product_id = $1`
 	switch filter {
 	case "available":
-		query += " AND used = false"
+		query += " AND pa.used = false"
 	case "used":
-		query += " AND used = true"
+		query += " AND pa.used = true"
 	}
-	query += " ORDER BY id DESC"
+	query += " ORDER BY pa.id DESC"
 
 	rows, err := r.pool.Query(ctx, query, productID)
 	if err != nil {
@@ -200,7 +203,7 @@ func (r *ProductRepo) ListAccounts(ctx context.Context, productID int, filter st
 	var accounts []models.ProductAccount
 	for rows.Next() {
 		var a models.ProductAccount
-		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.BuyerUsername, &a.BuyerTeleID, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, a)

@@ -48,18 +48,21 @@ func (p Product) Description(lang string) string {
 
 // ProductAccount represents an actual account in stock.
 type ProductAccount struct {
-	ID          int       `json:"id"`
-	ProductID   int       `json:"product_id"`
-	AccountData string    `json:"account_data"`
-	Used        bool      `json:"used"`
-	OrderID     int64     `json:"order_id"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID            int       `json:"id"`
+	ProductID     int       `json:"product_id"`
+	AccountData   string    `json:"account_data"`
+	Used          bool      `json:"used"`
+	OrderID       int64     `json:"order_id"`
+	BuyerUsername string    `json:"buyer_username"`
+	BuyerTeleID   int64     `json:"buyer_tele_id"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // Order represents a purchase order.
 type Order struct {
 	ID         int64           `json:"id"`
 	UserTeleID int64           `json:"user_tele_id"`
+	Username   string          `json:"username"`
 	ProductID  int             `json:"product_id"`
 	Quantity   int             `json:"quantity"`
 	TotalUSDT  decimal.Decimal `json:"total_usdt"`
@@ -71,6 +74,7 @@ type Order struct {
 type Deposit struct {
 	ID              int64           `json:"id"`
 	UserTeleID      int64           `json:"user_tele_id"`
+	Username        string          `json:"username"`
 	TxID            string          `json:"tx_id"`
 	MerchantTradeNo string          `json:"merchant_trade_no"` // kept for backward compat
 	AmountUSDT      decimal.Decimal `json:"amount_usdt"`

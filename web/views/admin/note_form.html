@@ -2,20 +2,20 @@
     {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
     <form method="POST" action="{{.Action}}">
         <div class="form-group">
-            <label>Content (Vietnamese)</label>
+            <label>Nội dung (Tiếng Việt)</label>
             <textarea name="content_vi" required>{{if .Note}}{{.Note.ContentVI}}{{end}}</textarea>
         </div>
         <div class="form-group">
-            <label>Content (English)</label>
+            <label>Nội dung (Tiếng Anh)</label>
             <textarea name="content_en" required>{{if .Note}}{{.Note.ContentEN}}{{end}}</textarea>
         </div>
         <div class="form-group checkbox-group">
             <input type="checkbox" name="active" id="active" {{if .Note}}{{if .Note.Active}}checked{{end}}{{else}}checked{{end}}>
-            <label for="active" style="margin:0">Active</label>
+            <label for="active" style="margin:0">Đang bật</label>
         </div>
         <div style="display:flex;gap:8px">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <a href="/admin/notes" class="btn" style="background:#6c757d;color:#fff">Cancel</a>
+            <button type="submit" class="btn btn-primary">Lưu</button>
+            <a href="/admin/notes" class="btn" style="background:#6c757d;color:#fff">Hủy</a>
         </div>
     </form>
 </div>

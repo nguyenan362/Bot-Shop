@@ -2,32 +2,32 @@
     {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
     {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
 
-    <h3>Binance API Configuration</h3>
+    <h3>Cấu hình API Binance</h3>
     <p style="color:#666;font-size:14px">
         Cấu hình API key Binance để hệ thống tự động kiểm tra lịch sử nạp USDT.<br>
-        User sẽ gửi USDT đến địa chỉ ví bên dưới với MEMO là Telegram ID để tự động cộng tiền.
+        Người dùng sẽ gửi USDT đến địa chỉ ví bên dưới với MEMO là Telegram ID để tự động cộng tiền.
     </p>
 
     <form method="POST" action="/admin/binance">
         <div class="form-group">
-            <label>API Key</label>
-            <input type="text" name="api_key" value="{{.Config.APIKey}}" placeholder="Binance API Key">
+            <label>Khóa API</label>
+            <input type="text" name="api_key" value="{{.Config.APIKey}}" placeholder="Nhập khóa API Binance">
         </div>
         <div class="form-group">
-            <label>Secret Key</label>
-            <input type="password" name="secret_key" value="{{.Config.SecretKey}}" placeholder="Binance Secret Key">
+            <label>Khóa bí mật</label>
+            <input type="password" name="secret_key" value="{{.Config.SecretKey}}" placeholder="Nhập khóa bí mật Binance">
         </div>
         <hr>
-        <h4>Deposit Address (Địa chỉ nhận USDT)</h4>
+        <h4>Địa chỉ nhận nạp USDT</h4>
         <div class="form-group">
-            <label>Wallet Address</label>
+            <label>Địa chỉ ví</label>
             <input type="text" name="deposit_address" value="{{.Config.DepositAddress}}" placeholder="Địa chỉ ví nhận USDT (VD: UQB...)">
         </div>
         <div class="form-group">
-            <label>Network</label>
+            <label>Mạng lưới</label>
             <input type="text" name="deposit_network" value="{{.Config.DepositNetwork}}" placeholder="Mạng lưới (VD: BEP20, ERC20, TRC20,...)">
             <small style="color:#888">Chọn mạng lưới hỗ trợ MEMO/Tag để hệ thống tự nhận diện Telegram ID</small>
         </div>
-        <button type="submit" class="btn btn-primary">Save Configuration</button>
+        <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
     </form>
 </div>

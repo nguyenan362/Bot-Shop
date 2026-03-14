@@ -69,8 +69,29 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	}
 
 	// Check for /admin command
-	if text == "/admin" && h.cfg.IsAdmin(teleID) {
-		h.sendAdminLink(ctx, msg.Chat.ID, teleID)
+	if text == "/admin" {
+		if h.hasTelegramAdminAccess(ctx, teleID) {
+			h.sendAdminLink(ctx, msg.Chat.ID, teleID)
+			return
+		}
+	}
+
+	// Check for /tb broadcast command (admin only)
+	if strings.HasPrefix(text, "/tb") {
+		if !h.hasTelegramAdminAccess(ctx, teleID) {
+			params := tu.Message(tu.ID(msg.Chat.ID), "❌ Bạn không có quyền sử dụng lệnh này.")
+			h.bot.SendMessage(ctx, params)
+			return
+		}
+
+		broadcastText := strings.TrimSpace(strings.TrimPrefix(text, "/tb"))
+		if broadcastText == "" {
+			params := tu.Message(tu.ID(msg.Chat.ID), "Cách dùng: /tb <nội dung thông báo>")
+			h.bot.SendMessage(ctx, params)
+			return
+		}
+
+		h.broadcastByAdminCommand(ctx, msg.Chat.ID, teleID, broadcastText)
 		return
 	}
 
@@ -518,6 +539,56 @@ func (h *BotHandler) sendAdminLink(ctx context.Context, chatID int64, teleID int
 	params := tu.Message(tu.ID(chatID), text)
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Msg("send admin link failed")
+	}
+}
+
+func (h *BotHandler) hasTelegramAdminAccess(ctx context.Context, teleID int64) bool {
+	if h.cfg.IsAdmin(teleID) {
+		return true
+	}
+
+	user, err := h.svc.UserRepo.GetByID(ctx, teleID)
+	if err != nil {
+		return false
+	}
+
+	return user.IsAdmin
+}
+
+func (h *BotHandler) broadcastByAdminCommand(ctx context.Context, chatID int64, adminTeleID int64, text string) {
+	users, err := h.svc.UserRepo.ListAllUserLangs(ctx)
+	if err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("tb command: failed to list users")
+		params := tu.Message(tu.ID(chatID), "❌ Không thể lấy danh sách người dùng.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	if len(users) == 0 {
+		params := tu.Message(tu.ID(chatID), "ℹ️ Chưa có người dùng nào để gửi thông báo.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	sent := 0
+	failed := 0
+
+	for _, u := range users {
+		params := tu.Message(tu.ID(u.TeleID), text)
+		if _, err := h.bot.SendMessage(ctx, params); err != nil {
+			failed++
+			log.Warn().Err(err).Int64("user", u.TeleID).Int64("admin", adminTeleID).Msg("tb command: send message failed")
+		} else {
+			sent++
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	result := fmt.Sprintf("✅ Đã gửi thông báo. Thành công: %d | Thất bại: %d", sent, failed)
+	params := tu.Message(tu.ID(chatID), result)
+	if _, err := h.bot.SendMessage(ctx, params); err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("tb command: send result failed")
 	}
 }
 

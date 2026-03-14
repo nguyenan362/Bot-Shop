@@ -1,16 +1,16 @@
 <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2>Notes</h2>
-        <a href="/admin/notes/new" class="btn btn-primary">+ New Note</a>
+        <h2>Danh sách lưu ý</h2>
+        <a href="/admin/notes/new" class="btn btn-primary">+ Thêm lưu ý</a>
     </div>
     <table>
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Content (VI)</th>
-                <th>Content (EN)</th>
-                <th>Active</th>
-                <th>Actions</th>
+                <th>Nội dung (VI)</th>
+                <th>Nội dung (EN)</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
             </tr>
         </thead>
         <tbody>
@@ -19,16 +19,16 @@
                 <td>{{.ID}}</td>
                 <td>{{.ContentVI}}</td>
                 <td>{{.ContentEN}}</td>
-                <td>{{if .Active}}<span class="badge badge-success">Active</span>{{else}}<span class="badge badge-danger">Inactive</span>{{end}}</td>
+                <td>{{if .Active}}<span class="badge badge-success">Đang bật</span>{{else}}<span class="badge badge-danger">Đang tắt</span>{{end}}</td>
                 <td class="actions">
-                    <a href="/admin/notes/{{.ID}}/edit" class="btn btn-primary btn-sm">Edit</a>
-                    <form method="POST" action="/admin/notes/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Delete this note?')">
-                        <button class="btn btn-danger btn-sm">Delete</button>
+                    <a href="/admin/notes/{{.ID}}/edit" class="btn btn-primary btn-sm">Sửa</a>
+                    <form method="POST" action="/admin/notes/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Xóa lưu ý này?')">
+                        <button class="btn btn-danger btn-sm">Xóa</button>
                     </form>
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="5" style="text-align:center;color:#999">No notes yet</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:#999">Chưa có lưu ý nào</td></tr>
             {{end}}
         </tbody>
     </table>

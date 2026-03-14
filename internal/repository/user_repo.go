@@ -23,7 +23,9 @@ func (r *UserRepo) Upsert(ctx context.Context, teleID int64, username string, is
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO users (tele_id, username, is_admin)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (tele_id) DO UPDATE SET username = EXCLUDED.username, is_admin = EXCLUDED.is_admin
+		ON CONFLICT (tele_id) DO UPDATE
+		SET username = EXCLUDED.username,
+		    is_admin = users.is_admin OR EXCLUDED.is_admin
 	`, teleID, username, isAdmin)
 	return err
 }
@@ -92,6 +94,31 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 	return users, nil
 }
 
+// Search returns users filtered by telegram ID or username (admin).
+func (r *UserRepo) Search(ctx context.Context, keyword string) ([]models.User, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
+		FROM users
+		WHERE username ILIKE '%' || $1 || '%'
+		   OR CAST(tele_id AS TEXT) ILIKE '%' || $1 || '%'
+		ORDER BY join_date DESC
+	`, keyword)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
 // UserLang holds a user's tele_id, language and timezone for broadcast.
 type UserLang struct {
 	TeleID   int64
@@ -121,5 +148,11 @@ func (r *UserRepo) ListAllUserLangs(ctx context.Context) ([]UserLang, error) {
 // UpdateTimezone sets user timezone.
 func (r *UserRepo) UpdateTimezone(ctx context.Context, teleID int64, tz string) error {
 	_, err := r.pool.Exec(ctx, `UPDATE users SET timezone = $2 WHERE tele_id = $1`, teleID, tz)
+	return err
+}
+
+// SetAdmin updates admin permission for a user.
+func (r *UserRepo) SetAdmin(ctx context.Context, teleID int64, isAdmin bool) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET is_admin = $2 WHERE tele_id = $1`, teleID, isAdmin)
 	return err
 }

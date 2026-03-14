@@ -26,9 +26,9 @@
                 <td>
                     <form method="POST" action="/admin/products/{{.ID}}/toggle" style="display:inline">
                         {{if .Active}}
-                        <button class="badge badge-success" style="border:none;cursor:pointer" title="Nhấn để tắt">Active</button>
+                        <button class="badge badge-success" style="border:none;cursor:pointer" title="Nhấn để tắt">Đang bật</button>
                         {{else}}
-                        <button class="badge badge-danger" style="border:none;cursor:pointer" title="Nhấn để bật">Inactive</button>
+                        <button class="badge badge-danger" style="border:none;cursor:pointer" title="Nhấn để bật">Đang tắt</button>
                         {{end}}
                     </form>
                 </td>

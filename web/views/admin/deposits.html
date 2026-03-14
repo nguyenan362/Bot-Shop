@@ -1,37 +1,44 @@
 <div class="card">
-    <h2>All Deposits</h2>
+    <h2>Tất cả giao dịch nạp</h2>
+
+    <form method="GET" action="/admin/deposits" style="display:flex;gap:8px;align-items:center;margin:12px 0 16px 0;">
+        <input type="text" name="q" value="{{.Query}}" placeholder="Tìm theo mã nạp, người dùng, username, txid, mạng, trạng thái" style="max-width:480px;">
+        <button type="submit" class="btn btn-sm btn-primary">Tìm kiếm</button>
+        <a href="/admin/deposits" class="btn btn-sm btn-outline">Xóa lọc</a>
+    </form>
+
     <table>
         <thead>
             <tr>
                 <th>ID</th>
-                <th>User</th>
+                <th>Người dùng</th>
                 <th>Tx ID</th>
-                <th>Amount (USDT)</th>
-                <th>Network</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Paid At</th>
+                <th>Số tiền (USDT)</th>
+                <th>Mạng</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th>Ngày xác nhận</th>
             </tr>
         </thead>
         <tbody>
             {{range .Deposits}}
             <tr>
                 <td>#{{.ID}}</td>
-                <td>{{.UserTeleID}}</td>
+                <td>{{if .Username}}@{{.Username}}{{else}}{{.UserTeleID}}{{end}}</td>
                 <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{if .TxID}}{{.TxID}}{{else}}{{.MerchantTradeNo}}{{end}}</td>
                 <td>{{.AmountUSDT}}</td>
                 <td>{{.Network}}</td>
                 <td>
-                    {{if eq .Status "paid"}}<span class="badge badge-success">Paid</span>
-                    {{else if eq .Status "unmatched"}}<span class="badge badge-warning">Unmatched</span>
-                    {{else if eq .Status "pending"}}<span class="badge badge-warning">Pending</span>
+                    {{if eq .Status "paid"}}<span class="badge badge-success">Đã thanh toán</span>
+                    {{else if eq .Status "unmatched"}}<span class="badge badge-warning">Chưa khớp</span>
+                    {{else if eq .Status "pending"}}<span class="badge badge-warning">Đang xử lý</span>
                     {{else}}<span class="badge badge-danger">{{.Status}}</span>{{end}}
                 </td>
                 <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
                 <td>{{if .PaidAt}}{{.PaidAt.Format "2006-01-02 15:04"}}{{else}}-{{end}}</td>
             </tr>
             {{else}}
-            <tr><td colspan="8" style="text-align:center;color:#999">No deposits yet</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999">Chưa có giao dịch nạp nào</td></tr>
             {{end}}
         </tbody>
     </table>

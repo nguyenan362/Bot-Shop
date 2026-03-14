@@ -1,36 +1,43 @@
 <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2>All Orders</h2>
+        <h2>Tất cả đơn hàng</h2>
     </div>
+
+    <form method="GET" action="/admin/orders" style="display:flex;gap:8px;align-items:center;margin:12px 0 16px 0;">
+        <input type="text" name="q" value="{{.Query}}" placeholder="Tìm theo mã đơn, người dùng, username, sản phẩm, trạng thái" style="max-width:420px;">
+        <button type="submit" class="btn btn-sm btn-primary">Tìm kiếm</button>
+        <a href="/admin/orders" class="btn btn-sm btn-outline">Xóa lọc</a>
+    </form>
+
     <table>
         <thead>
             <tr>
                 <th>ID</th>
-                <th>User</th>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Total (USDT)</th>
-                <th>Status</th>
-                <th>Date</th>
+                <th>Người dùng</th>
+                <th>Sản phẩm</th>
+                <th>SL</th>
+                <th>Tổng (USDT)</th>
+                <th>Trạng thái</th>
+                <th>Ngày</th>
             </tr>
         </thead>
         <tbody>
             {{range .Orders}}
             <tr>
                 <td>#{{.ID}}</td>
-                <td>{{.UserTeleID}}</td>
+                <td>{{if .Username}}@{{.Username}}{{else}}{{.UserTeleID}}{{end}}</td>
                 <td>{{.ProductID}}</td>
                 <td>{{.Quantity}}</td>
                 <td>{{.TotalUSDT}}</td>
                 <td>
-                    {{if eq .Status "success"}}<span class="badge badge-success">Success</span>
-                    {{else if eq .Status "pending"}}<span class="badge badge-warning">Pending</span>
-                    {{else}}<span class="badge badge-danger">Failed</span>{{end}}
+                    {{if eq .Status "success"}}<span class="badge badge-success">Thành công</span>
+                    {{else if eq .Status "pending"}}<span class="badge badge-warning">Đang xử lý</span>
+                    {{else}}<span class="badge badge-danger">Thất bại</span>{{end}}
                 </td>
                 <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align:center;color:#999">No orders yet</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#999">Chưa có đơn hàng nào</td></tr>
             {{end}}
         </tbody>
     </table>
