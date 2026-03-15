@@ -1,7 +1,5 @@
 <div class="card">
     <h2>Tất cả người dùng</h2>
-    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
-    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
 
     <form method="GET" action="/admin/users" style="display:flex;gap:8px;align-items:center;margin:12px 0 16px 0;">
         <input type="text" name="q" value="{{.Query}}" placeholder="Tìm theo Telegram ID hoặc username" style="max-width:360px;">
@@ -18,7 +16,6 @@
                 <th>Ngôn ngữ</th>
                 <th>Admin</th>
                 <th>Ngày tham gia</th>
-                <th>Thao tác</th>
             </tr>
         </thead>
         <tbody>
@@ -30,20 +27,9 @@
                 <td>{{.Language}}</td>
                 <td>{{if .IsAdmin}}<span class="badge badge-success">Có</span>{{else}}Không{{end}}</td>
                 <td>{{.JoinDate.Format "2006-01-02"}}</td>
-                <td>
-                    {{if and .IsAdmin (eq .TeleID $.CurrentAdminTeleID)}}
-                    <button class="btn btn-sm btn-outline" disabled title="Bạn không thể tự gỡ quyền admin">Admin hiện tại</button>
-                    {{else}}
-                    <form method="POST" action="/admin/users/{{.TeleID}}/toggle-admin" style="display:inline" onsubmit="return confirm('{{if .IsAdmin}}Gỡ quyền admin của người dùng này?{{else}}Cấp quyền admin cho người dùng này?{{end}}')">
-                        <button type="submit" class="btn btn-sm {{if .IsAdmin}}btn-danger{{else}}btn-success{{end}}">
-                            {{if .IsAdmin}}Gỡ Admin{{else}}Cấp Admin{{end}}
-                        </button>
-                    </form>
-                    {{end}}
-                </td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
             {{end}}
         </tbody>
     </table>

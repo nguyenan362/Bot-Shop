@@ -87,7 +87,6 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	// Orders & Users
 	admin.Get("/orders", h.listOrders)
 	admin.Get("/users", h.listUsers)
-	admin.Post("/users/:tele_id/toggle-admin", h.toggleUserAdmin)
 	admin.Get("/deposits", h.listDeposits)
 
 	// Binance Config
@@ -539,65 +538,7 @@ func (h *AdminHandler) listUsers(c *fiber.Ctx) error {
 		"Query": q,
 	}
 
-	if success := c.Query("success"); success != "" {
-		successText := map[string]string{
-			"granted": "Đã cấp quyền admin cho người dùng.",
-			"removed": "Đã gỡ quyền admin của người dùng.",
-		}
-		if msg, ok := successText[success]; ok {
-			data["Success"] = msg
-		}
-	}
-	if errMsg := c.Query("error"); errMsg != "" {
-		errorText := map[string]string{
-			"invalid_tele_id":     "Telegram ID không hợp lệ.",
-			"user_not_found":      "Không tìm thấy người dùng.",
-			"cannot_remove_self":  "Bạn không thể tự gỡ quyền admin của chính mình.",
-			"managed_by_env":      "Tài khoản này đang được cấu hình.",
-			"update_admin_failed": "Không thể cập nhật quyền admin.",
-		}
-		if msg, ok := errorText[errMsg]; ok {
-			data["Error"] = msg
-		}
-	}
-
-	if currentAdminID, ok := c.Locals("admin_tele_id").(int64); ok {
-		data["CurrentAdminTeleID"] = currentAdminID
-	}
-
 	return c.Render("admin/users", data, "partials/base")
-}
-
-func (h *AdminHandler) toggleUserAdmin(c *fiber.Ctx) error {
-	teleID, err := strconv.ParseInt(c.Params("tele_id"), 10, 64)
-	if err != nil {
-		return c.Redirect("/admin/users?error=invalid_tele_id")
-	}
-
-	user, err := h.userRepo.GetByID(c.Context(), teleID)
-	if err != nil {
-		return c.Redirect("/admin/users?error=user_not_found")
-	}
-
-	if h.cfg.IsAdmin(teleID) {
-		return c.Redirect("/admin/users?error=managed_by_env")
-	}
-
-	if currentAdminID, ok := c.Locals("admin_tele_id").(int64); ok {
-		if currentAdminID == teleID && user.IsAdmin {
-			return c.Redirect("/admin/users?error=cannot_remove_self")
-		}
-	}
-
-	newIsAdmin := !user.IsAdmin
-	if err := h.userRepo.SetAdmin(c.Context(), teleID, newIsAdmin); err != nil {
-		return c.Redirect("/admin/users?error=update_admin_failed")
-	}
-
-	if newIsAdmin {
-		return c.Redirect("/admin/users?success=granted")
-	}
-	return c.Redirect("/admin/users?success=removed")
 }
 
 // ---- Deposits ----

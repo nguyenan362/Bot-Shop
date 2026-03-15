@@ -150,9 +150,3 @@ func (r *UserRepo) UpdateTimezone(ctx context.Context, teleID int64, tz string) 
 	_, err := r.pool.Exec(ctx, `UPDATE users SET timezone = $2 WHERE tele_id = $1`, teleID, tz)
 	return err
 }
-
-// SetAdmin updates admin permission for a user.
-func (r *UserRepo) SetAdmin(ctx context.Context, teleID int64, isAdmin bool) error {
-	_, err := r.pool.Exec(ctx, `UPDATE users SET is_admin = $2 WHERE tele_id = $1`, teleID, isAdmin)
-	return err
-}
