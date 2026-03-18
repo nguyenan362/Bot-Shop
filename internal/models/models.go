@@ -15,6 +15,7 @@ type User struct {
 	Timezone    string          `json:"timezone"`
 	JoinDate    time.Time       `json:"join_date"`
 	IsAdmin     bool            `json:"is_admin"`
+	IsBanned    bool            `json:"is_banned"`
 }
 
 // Product represents an account type for sale.

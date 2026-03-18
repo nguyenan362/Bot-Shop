@@ -142,6 +142,27 @@ func (s *ShopService) BuyAccounts(ctx context.Context, teleID int64, productID i
 	}, nil
 }
 
+// GetOutOfStockProducts returns active products that currently have no available accounts.
+func (s *ShopService) GetOutOfStockProducts(ctx context.Context) ([]models.Product, error) {
+	products, err := s.ProductRepo.ListActive(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active products: %w", err)
+	}
+
+	outOfStock := make([]models.Product, 0)
+	for _, p := range products {
+		available, err := s.ProductRepo.CountAvailable(ctx, p.ID)
+		if err != nil {
+			return nil, fmt.Errorf("count available for product %d: %w", p.ID, err)
+		}
+		if available <= 0 {
+			outOfStock = append(outOfStock, p)
+		}
+	}
+
+	return outOfStock, nil
+}
+
 // generateAccountFile creates a TXT file with account data.
 func generateAccountFile(orderID int64, accounts []models.ProductAccount) ([]byte, string) {
 	var buf bytes.Buffer

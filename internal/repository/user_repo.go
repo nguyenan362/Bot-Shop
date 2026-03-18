@@ -34,9 +34,9 @@ func (r *UserRepo) Upsert(ctx context.Context, teleID int64, username string, is
 func (r *UserRepo) GetByID(ctx context.Context, teleID int64) (*models.User, error) {
 	u := &models.User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin, is_banned
 		FROM users WHERE tele_id = $1
-	`, teleID).Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin)
+	`, teleID).Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin, &u.IsBanned)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (r *UserRepo) DeductBalance(ctx context.Context, teleID int64, amount decim
 // ListAll returns all users for admin.
 func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin, is_banned
 		FROM users ORDER BY join_date DESC
 	`)
 	if err != nil {
@@ -86,7 +86,7 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin); err != nil {
+		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin, &u.IsBanned); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -97,7 +97,7 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]models.User, error) {
 // Search returns users filtered by telegram ID or username (admin).
 func (r *UserRepo) Search(ctx context.Context, keyword string) ([]models.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin
+		SELECT tele_id, username, balance_usdt, language, timezone, join_date, is_admin, is_banned
 		FROM users
 		WHERE username ILIKE '%' || $1 || '%'
 		   OR CAST(tele_id AS TEXT) ILIKE '%' || $1 || '%'
@@ -111,12 +111,18 @@ func (r *UserRepo) Search(ctx context.Context, keyword string) ([]models.User, e
 	var users []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin); err != nil {
+		if err := rows.Scan(&u.TeleID, &u.Username, &u.BalanceUSDT, &u.Language, &u.Timezone, &u.JoinDate, &u.IsAdmin, &u.IsBanned); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+// SetBanned sets user banned state.
+func (r *UserRepo) SetBanned(ctx context.Context, teleID int64, banned bool) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET is_banned = $2 WHERE tele_id = $1`, teleID, banned)
+	return err
 }
 
 // UserLang holds a user's tele_id, language and timezone for broadcast.

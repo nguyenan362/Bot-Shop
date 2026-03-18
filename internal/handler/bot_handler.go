@@ -36,6 +36,9 @@ func (h *BotHandler) HandleUpdate(ctx context.Context, update telego.Update) {
 		h.handleMessage(ctx, update.Message)
 	}
 	if update.CallbackQuery != nil {
+		if h.isUserBanned(ctx, update.CallbackQuery.From.ID) {
+			return
+		}
 		h.handleCallback(ctx, update.CallbackQuery)
 	}
 }
@@ -49,6 +52,10 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	isAdmin := h.cfg.IsAdmin(teleID)
 	if err := h.svc.UserRepo.Upsert(ctx, teleID, username, isAdmin); err != nil {
 		log.Error().Err(err).Int64("user", teleID).Msg("upsert user failed")
+	}
+
+	if h.isUserBanned(ctx, teleID) {
+		return
 	}
 
 	// Auto-detect and save timezone from Telegram language_code
@@ -92,6 +99,18 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 		}
 
 		h.broadcastByAdminCommand(ctx, msg.Chat.ID, teleID, broadcastText)
+		return
+	}
+
+	// Check for /out command (admin only)
+	if strings.HasPrefix(text, "/out") {
+		if !h.hasTelegramAdminAccess(ctx, teleID) {
+			params := tu.Message(tu.ID(msg.Chat.ID), "❌ Bạn không có quyền sử dụng lệnh này.")
+			h.bot.SendMessage(ctx, params)
+			return
+		}
+
+		h.broadcastOutOfStockByAdminCommand(ctx, msg.Chat.ID, teleID)
 		return
 	}
 
@@ -592,6 +611,66 @@ func (h *BotHandler) broadcastByAdminCommand(ctx context.Context, chatID int64, 
 	}
 }
 
+func (h *BotHandler) broadcastOutOfStockByAdminCommand(ctx context.Context, chatID int64, adminTeleID int64) {
+	outOfStockProducts, err := h.svc.GetOutOfStockProducts(ctx)
+	if err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: failed to get out-of-stock products")
+		params := tu.Message(tu.ID(chatID), "❌ Không thể kiểm tra tồn kho sản phẩm.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	if len(outOfStockProducts) == 0 {
+		params := tu.Message(tu.ID(chatID), "✅ Hiện tại không có sản phẩm nào hết hàng.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	users, err := h.svc.UserRepo.ListAllUserLangs(ctx)
+	if err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: failed to list users")
+		params := tu.Message(tu.ID(chatID), "❌ Không thể lấy danh sách người dùng.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	if len(users) == 0 {
+		params := tu.Message(tu.ID(chatID), "ℹ️ Chưa có người dùng nào để gửi thông báo.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	sent := 0
+	failed := 0
+
+	for _, product := range outOfStockProducts {
+		productName := product.NameEN
+		if strings.TrimSpace(productName) == "" {
+			productName = product.NameVI
+		}
+
+		message := fmt.Sprintf("Oh no! %s out of stock", productName)
+
+		for _, u := range users {
+			params := tu.Message(tu.ID(u.TeleID), message)
+			if _, err := h.bot.SendMessage(ctx, params); err != nil {
+				failed++
+				log.Warn().Err(err).Int64("user", u.TeleID).Int64("admin", adminTeleID).Int("product_id", product.ID).Msg("out command: send message failed")
+			} else {
+				sent++
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	result := fmt.Sprintf("✅ Đã gửi thông báo hết hàng cho %d sản phẩm. Thành công: %d | Thất bại: %d", len(outOfStockProducts), sent, failed)
+	params := tu.Message(tu.ID(chatID), result)
+	if _, err := h.bot.SendMessage(ctx, params); err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: send result failed")
+	}
+}
+
 // sendError sends a generic error message.
 func (h *BotHandler) sendError(ctx context.Context, chatID int64, lang string) {
 	params := tu.Message(tu.ID(chatID), i18n.TSimple(lang, "error_general"))
@@ -608,6 +687,14 @@ func (h *BotHandler) getUserLang(ctx context.Context, teleID int64) string {
 		return "vi"
 	}
 	return user.Language
+}
+
+func (h *BotHandler) isUserBanned(ctx context.Context, teleID int64) bool {
+	user, err := h.svc.UserRepo.GetByID(ctx, teleID)
+	if err != nil {
+		return false
+	}
+	return user.IsBanned
 }
 
 // NotifyDeposit sends deposit success notification to a user.

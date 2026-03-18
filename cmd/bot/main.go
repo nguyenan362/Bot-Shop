@@ -202,6 +202,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 		"migrations/001_init.sql",
 		"migrations/002_binance_deposit_update.sql",
 		"migrations/003_user_timezone.sql",
+		"migrations/004_user_ban.sql",
 	}
 
 	for _, file := range migrationFiles {

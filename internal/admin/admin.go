@@ -87,6 +87,8 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	// Orders & Users
 	admin.Get("/orders", h.listOrders)
 	admin.Get("/users", h.listUsers)
+	admin.Post("/users/:id/ban", h.banUser)
+	admin.Post("/users/:id/unban", h.unbanUser)
 	admin.Get("/deposits", h.listDeposits)
 
 	// Binance Config
@@ -539,6 +541,44 @@ func (h *AdminHandler) listUsers(c *fiber.Ctx) error {
 	}
 
 	return c.Render("admin/users", data, "partials/base")
+}
+
+func (h *AdminHandler) banUser(c *fiber.Ctx) error {
+	teleID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).SendString("Telegram ID không hợp lệ")
+	}
+
+	if h.cfg.IsAdmin(teleID) {
+		return c.Status(400).SendString("Không thể ban tài khoản admin hệ thống")
+	}
+
+	user, err := h.userRepo.GetByID(c.Context(), teleID)
+	if err != nil {
+		return c.Status(404).SendString("Không tìm thấy người dùng")
+	}
+	if user.IsAdmin {
+		return c.Status(400).SendString("Không thể ban tài khoản admin")
+	}
+
+	if err := h.userRepo.SetBanned(c.Context(), teleID, true); err != nil {
+		return c.Status(500).SendString("Không thể ban người dùng")
+	}
+
+	return c.Redirect("/admin/users")
+}
+
+func (h *AdminHandler) unbanUser(c *fiber.Ctx) error {
+	teleID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).SendString("Telegram ID không hợp lệ")
+	}
+
+	if err := h.userRepo.SetBanned(c.Context(), teleID, false); err != nil {
+		return c.Status(500).SendString("Không thể bỏ ban người dùng")
+	}
+
+	return c.Redirect("/admin/users")
 }
 
 // ---- Deposits ----

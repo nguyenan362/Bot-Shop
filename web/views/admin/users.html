@@ -15,7 +15,9 @@
                 <th>Số dư (USDT)</th>
                 <th>Ngôn ngữ</th>
                 <th>Admin</th>
+                <th>Trạng thái</th>
                 <th>Ngày tham gia</th>
+                <th>Ban/Unban</th>
             </tr>
         </thead>
         <tbody>
@@ -26,10 +28,24 @@
                 <td>{{.BalanceUSDT}}</td>
                 <td>{{.Language}}</td>
                 <td>{{if .IsAdmin}}<span class="badge badge-success">Có</span>{{else}}Không{{end}}</td>
+                <td>{{if .IsBanned}}<span class="badge badge-danger">Đã ban</span>{{else}}<span class="badge badge-success">Hoạt động</span>{{end}}</td>
                 <td>{{.JoinDate.Format "2006-01-02"}}</td>
+                <td>
+                    {{if .IsAdmin}}
+                    <span style="color:#6b7280;">-</span>
+                    {{else if .IsBanned}}
+                    <form method="POST" action="/admin/users/{{.TeleID}}/unban" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-primary">Bỏ ban</button>
+                    </form>
+                    {{else}}
+                    <form method="POST" action="/admin/users/{{.TeleID}}/ban" style="display:inline;" onsubmit="return confirm('Ban người dùng này? Bot sẽ không phản hồi bất kỳ lệnh nào từ tài khoản này.');">
+                        <button type="submit" class="btn btn-sm btn-danger">Ban</button>
+                    </form>
+                    {{end}}
+                </td>
             </tr>
             {{else}}
-            <tr><td colspan="6" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
             {{end}}
         </tbody>
     </table>
