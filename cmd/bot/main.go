@@ -143,7 +143,7 @@ func main() {
 	log.Info().Msg("daily product broadcast initialized")
 
 	// ---- Admin Panel Routes ----
-	adminHandler := admin.NewAdminHandler(cfg, pool, productRepo, orderRepo, depositRepo, noteRepo, userRepo)
+	adminHandler := admin.NewAdminHandler(cfg, pool, productRepo, orderRepo, depositRepo, noteRepo, userRepo, rdb)
 	adminHandler.RegisterRoutes(app)
 
 	// ---- Health Check ----

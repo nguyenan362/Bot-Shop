@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/nguyenan362/bot-shop-go/internal/config"
 	"github.com/nguyenan362/bot-shop-go/internal/models"
 	"github.com/nguyenan362/bot-shop-go/internal/repository"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 )
@@ -26,6 +28,7 @@ type AdminHandler struct {
 	depositRepo *repository.DepositRepo
 	noteRepo    *repository.NoteRepo
 	userRepo    *repository.UserRepo
+	rdb         *redis.Client
 }
 
 // NewAdminHandler creates a new admin handler.
@@ -37,6 +40,7 @@ func NewAdminHandler(
 	depositRepo *repository.DepositRepo,
 	noteRepo *repository.NoteRepo,
 	userRepo *repository.UserRepo,
+	rdb *redis.Client,
 ) *AdminHandler {
 	return &AdminHandler{
 		cfg:         cfg,
@@ -46,6 +50,7 @@ func NewAdminHandler(
 		depositRepo: depositRepo,
 		noteRepo:    noteRepo,
 		userRepo:    userRepo,
+		rdb:         rdb,
 	}
 }
 
@@ -358,6 +363,10 @@ func (h *AdminHandler) uploadAccounts(c *fiber.Ctx) error {
 	count, err := h.productRepo.AddAccounts(c.Context(), id, accounts)
 	if err != nil {
 		return c.Status(500).SendString("Lỗi khi thêm tài khoản: " + err.Error())
+	}
+
+	if count > 0 && h.rdb != nil {
+		_ = h.rdb.Del(c.Context(), fmt.Sprintf("product:out_of_stock_notified:%d", id)).Err()
 	}
 
 	return c.Redirect("/admin/products/" + c.Params("id") + "/accounts?added=" + strconv.Itoa(count))

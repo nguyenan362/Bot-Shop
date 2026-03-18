@@ -102,18 +102,6 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 		return
 	}
 
-	// Check for /out command (admin only)
-	if strings.HasPrefix(text, "/out") {
-		if !h.hasTelegramAdminAccess(ctx, teleID) {
-			params := tu.Message(tu.ID(msg.Chat.ID), "❌ Bạn không có quyền sử dụng lệnh này.")
-			h.bot.SendMessage(ctx, params)
-			return
-		}
-
-		h.broadcastOutOfStockByAdminCommand(ctx, msg.Chat.ID, teleID)
-		return
-	}
-
 	// Check button text matches
 	switch text {
 	case i18n.TSimple("vi", "btn_buy"), i18n.TSimple("en", "btn_buy"):
@@ -512,6 +500,10 @@ func (h *BotHandler) handleBuyConfirm(ctx context.Context, cb *telego.CallbackQu
 	if _, err := h.bot.SendDocument(ctx, file); err != nil {
 		log.Error().Err(err).Msg("send document failed")
 	}
+
+	if product != nil {
+		h.autoNotifyOutOfStock(ctx, productID, product.NameEN, teleID)
+	}
 }
 
 // handleLanguageChange changes user language.
@@ -611,64 +603,62 @@ func (h *BotHandler) broadcastByAdminCommand(ctx context.Context, chatID int64, 
 	}
 }
 
-func (h *BotHandler) broadcastOutOfStockByAdminCommand(ctx context.Context, chatID int64, adminTeleID int64) {
-	outOfStockProducts, err := h.svc.GetOutOfStockProducts(ctx)
+func (h *BotHandler) autoNotifyOutOfStock(ctx context.Context, productID int, productName string, buyerTeleID int64) {
+	available, err := h.svc.ProductRepo.CountAvailable(ctx, productID)
 	if err != nil {
-		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: failed to get out-of-stock products")
-		params := tu.Message(tu.ID(chatID), "❌ Không thể kiểm tra tồn kho sản phẩm.")
-		h.bot.SendMessage(ctx, params)
+		log.Error().Err(err).Int("product_id", productID).Msg("auto out-of-stock: count available failed")
 		return
 	}
 
-	if len(outOfStockProducts) == 0 {
-		params := tu.Message(tu.ID(chatID), "✅ Hiện tại không có sản phẩm nào hết hàng.")
-		h.bot.SendMessage(ctx, params)
+	if available > 0 {
+		_ = h.svc.Redis.Del(ctx, fmt.Sprintf("product:out_of_stock_notified:%d", productID)).Err()
 		return
+	}
+
+	lockKey := fmt.Sprintf("product:out_of_stock_notified:%d", productID)
+	locked, err := h.svc.Redis.SetNX(ctx, lockKey, "1", 0).Result()
+	if err != nil {
+		log.Error().Err(err).Int("product_id", productID).Msg("auto out-of-stock: setnx failed")
+		return
+	}
+	if !locked {
+		return
+	}
+
+	if strings.TrimSpace(productName) == "" {
+		if p, getErr := h.svc.ProductRepo.GetByID(ctx, productID); getErr == nil && p != nil {
+			productName = p.NameEN
+			if strings.TrimSpace(productName) == "" {
+				productName = p.NameVI
+			}
+		}
+	}
+	if strings.TrimSpace(productName) == "" {
+		productName = fmt.Sprintf("Product #%d", productID)
 	}
 
 	users, err := h.svc.UserRepo.ListAllUserLangs(ctx)
 	if err != nil {
-		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: failed to list users")
-		params := tu.Message(tu.ID(chatID), "❌ Không thể lấy danh sách người dùng.")
-		h.bot.SendMessage(ctx, params)
+		log.Error().Err(err).Int("product_id", productID).Msg("auto out-of-stock: list users failed")
 		return
 	}
 
-	if len(users) == 0 {
-		params := tu.Message(tu.ID(chatID), "ℹ️ Chưa có người dùng nào để gửi thông báo.")
-		h.bot.SendMessage(ctx, params)
-		return
-	}
-
+	message := fmt.Sprintf("Oh no! %s out of stock", productName)
 	sent := 0
 	failed := 0
 
-	for _, product := range outOfStockProducts {
-		productName := product.NameEN
-		if strings.TrimSpace(productName) == "" {
-			productName = product.NameVI
+	for _, u := range users {
+		params := tu.Message(tu.ID(u.TeleID), message)
+		if _, err := h.bot.SendMessage(ctx, params); err != nil {
+			failed++
+			log.Warn().Err(err).Int64("user", u.TeleID).Int("product_id", productID).Msg("auto out-of-stock: send message failed")
+		} else {
+			sent++
 		}
-
-		message := fmt.Sprintf("Oh no! %s out of stock", productName)
-
-		for _, u := range users {
-			params := tu.Message(tu.ID(u.TeleID), message)
-			if _, err := h.bot.SendMessage(ctx, params); err != nil {
-				failed++
-				log.Warn().Err(err).Int64("user", u.TeleID).Int64("admin", adminTeleID).Int("product_id", product.ID).Msg("out command: send message failed")
-			} else {
-				sent++
-			}
-
-			time.Sleep(50 * time.Millisecond)
-		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	result := fmt.Sprintf("✅ Đã gửi thông báo hết hàng cho %d sản phẩm. Thành công: %d | Thất bại: %d", len(outOfStockProducts), sent, failed)
-	params := tu.Message(tu.ID(chatID), result)
-	if _, err := h.bot.SendMessage(ctx, params); err != nil {
-		log.Error().Err(err).Int64("admin", adminTeleID).Msg("out command: send result failed")
-	}
+	log.Info().Int("product_id", productID).Int64("buyer", buyerTeleID).Int("sent", sent).Int("failed", failed).Msg("auto out-of-stock notification sent")
 }
 
 // sendError sends a generic error message.
