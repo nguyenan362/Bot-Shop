@@ -255,9 +255,40 @@ func (s *ShopService) VerifyAndCreditDeposit(ctx context.Context, teleID int64, 
 		return decimal.Zero, fmt.Errorf("invalid_amount")
 	}
 
-	// 6. Verify deposit address matches our configured address
-	if cfg.DepositAddress != "" && matched.Address != cfg.DepositAddress {
-		return decimal.Zero, fmt.Errorf("wrong_address")
+	// 6. Verify deposit address/network matches configured allow-list.
+	// Config accepts multiple values separated by comma, semicolon or new lines.
+	allowedAddresses := parseMultiValueConfig(cfg.DepositAddress, false)
+	if len(allowedAddresses) > 0 {
+		okAddress := false
+		for _, addr := range allowedAddresses {
+			if strings.EqualFold(strings.TrimSpace(matched.Address), addr) {
+				okAddress = true
+				break
+			}
+		}
+		if !okAddress {
+			return decimal.Zero, fmt.Errorf("wrong_address")
+		}
+	}
+
+	allowedNetworks := parseMultiValueConfig(cfg.DepositNetwork, false)
+	if len(allowedNetworks) > 0 {
+		okNetwork := false
+		matchedNetwork := normalizeNetworkName(matched.Network)
+		for _, network := range allowedNetworks {
+			if normalizeNetworkName(network) == matchedNetwork {
+				okNetwork = true
+				break
+			}
+		}
+		if !okNetwork {
+			log.Warn().
+				Str("matchedNetwork", matched.Network).
+				Str("normalizedMatchedNetwork", matchedNetwork).
+				Str("configuredNetworks", cfg.DepositNetwork).
+				Msg("deposit rejected due to unsupported network")
+			return decimal.Zero, fmt.Errorf("wrong_network")
+		}
 	}
 
 	// 7. Credit user balance
@@ -404,6 +435,55 @@ func (s *ShopService) getLastDepositCheckTime(ctx context.Context) int64 {
 // setLastDepositCheckTime stores the last deposit check time in Redis (in ms).
 func (s *ShopService) setLastDepositCheckTime(ctx context.Context, ms int64) {
 	s.Redis.Set(ctx, "binance:last_deposit_check", strconv.FormatInt(ms, 10), 0)
+}
+
+func parseMultiValueConfig(raw string, upper bool) []string {
+	raw = strings.ReplaceAll(raw, "\r", "\n")
+	replacer := strings.NewReplacer(";", "\n", ",", "\n", "|", "\n")
+	raw = replacer.Replace(raw)
+
+	parts := strings.Split(raw, "\n")
+	result := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+
+	for _, p := range parts {
+		value := strings.TrimSpace(p)
+		if value == "" {
+			continue
+		}
+		if upper {
+			value = strings.ToUpper(value)
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+
+	return result
+}
+
+func normalizeNetworkName(raw string) string {
+	v := strings.ToUpper(strings.TrimSpace(raw))
+	v = strings.NewReplacer(" ", "", "-", "", "_", "", "(", "", ")", "").Replace(v)
+
+	switch v {
+	case "TRX", "TRON", "TRC20", "TRONTRC20":
+		return "TRC20"
+	case "BSC", "BEP20", "BNBSMARTCHAIN", "BSCBEP20", "BEP20BSC":
+		return "BEP20"
+	case "ETH", "ERC20", "ETHEREUM":
+		return "ERC20"
+	case "MATIC", "POLYGON", "POLYGONPOS", "MATICPOLYGON":
+		return "POLYGON"
+	case "ARBITRUM", "ARBITRUMONE":
+		return "ARBITRUM"
+	case "OPTIMISM", "OP":
+		return "OPTIMISM"
+	default:
+		return v
+	}
 }
 
 // SetUserState stores temporary user state in Redis (e.g., awaiting quantity input).

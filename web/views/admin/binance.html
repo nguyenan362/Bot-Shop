@@ -21,12 +21,13 @@
         <h4>Địa chỉ nhận nạp USDT</h4>
         <div class="form-group">
             <label>Địa chỉ ví</label>
-            <input type="text" name="deposit_address" value="{{.Config.DepositAddress}}" placeholder="Địa chỉ ví nhận USDT (VD: UQB...)">
+            <textarea name="deposit_address" rows="4" placeholder="Mỗi dòng 1 địa chỉ (VD: địa chỉ BEP20 ở dòng 1, TRC20 ở dòng 2)">{{.Config.DepositAddress}}</textarea>
+            <small style="color:#888">Hỗ trợ nhập nhiều địa chỉ bằng cách xuống dòng hoặc phân tách bằng dấu phẩy.</small>
         </div>
         <div class="form-group">
             <label>Mạng lưới</label>
-            <input type="text" name="deposit_network" value="{{.Config.DepositNetwork}}" placeholder="Mạng lưới (VD: BEP20, ERC20, TRC20,...)">
-            <small style="color:#888">Chọn mạng lưới hỗ trợ MEMO/Tag để hệ thống tự nhận diện Telegram ID</small>
+            <textarea name="deposit_network" rows="3" placeholder="Mỗi dòng 1 mạng (VD: BEP20\nTRC20)">{{.Config.DepositNetwork}}</textarea>
+            <small style="color:#888">Hỗ trợ nhập nhiều mạng bằng cách xuống dòng hoặc phân tách bằng dấu phẩy (VD: BEP20,TRC20).</small>
         </div>
         <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
     </form>

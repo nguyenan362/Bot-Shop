@@ -46,7 +46,7 @@ other = "❌ Out of stock or insufficient quantity.\nAvailable: {{.Available}}"
 other = "✅ Order #{{.OrderID}} successful!\n\n📦 Product: {{.ProductName}}\n🔢 Quantity: {{.Quantity}}\n💰 Total: {{.Total}} USDT\n\n📄 Account file attached below."
 
 [deposit_instructions]
-other = "💰 **How to Deposit USDT**\n\n📋 Send USDT to the following wallet address:\n\n🔗 Address: `{{.Address}}`\n🌐 Network: **{{.Network}}**\n\n⚠️ **After sending**, please send the transaction ID to the bot for verification.\n\n💡 You can send TxID/TxHash or Binance internal transaction ID (shown in email/withdrawal history)."
+other = "💰 <b>How to Deposit USDT</b>\n\n📋 Send USDT using one of the following network routes:\n{{.Routes}}\n\n⚠️ <b>After sending</b>, please send the transaction ID to the bot for verification.\n\n💡 You can send TxID/TxHash or Binance internal transaction ID (shown in email/withdrawal history)."
 
 [deposit_success]
 other = "✅ Deposit successful!\n\n💰 Amount: **{{.Amount}} USDT**\n💰 New balance: **{{.NewBalance}} USDT**"
@@ -116,6 +116,9 @@ other = "❌ This transaction is not USDT. Please only send USDT."
 
 [deposit_txid_wrong_address]
 other = "❌ This transaction was sent to a different address than the shop's deposit address."
+
+[deposit_txid_wrong_network]
+other = "❌ This transaction uses a network that is not in the shop's supported deposit networks."
 
 [daily_product_header]
 other = "📢 **Today's Product Update**\n"

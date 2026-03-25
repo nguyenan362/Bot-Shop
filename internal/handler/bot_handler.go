@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -259,11 +260,10 @@ func (h *BotHandler) handleDepositPrompt(ctx context.Context, chatID int64, tele
 	}
 
 	text := i18n.T(lang, "deposit_instructions", map[string]interface{}{
-		"Address": cfg.DepositAddress,
-		"Network": cfg.DepositNetwork,
+		"Routes": formatDepositRoutes(cfg.DepositNetwork, cfg.DepositAddress),
 	})
 
-	params := tu.Message(tu.ID(chatID), text).WithParseMode(telego.ModeMarkdown)
+	params := tu.Message(tu.ID(chatID), text).WithParseMode(telego.ModeHTML)
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Msg("send deposit instructions failed")
 	}
@@ -740,6 +740,8 @@ func (h *BotHandler) handleTxIDInput(ctx context.Context, msg *telego.Message, t
 			text = i18n.TSimple(lang, "deposit_txid_not_usdt")
 		case "wrong_address":
 			text = i18n.TSimple(lang, "deposit_txid_wrong_address")
+		case "wrong_network":
+			text = i18n.TSimple(lang, "deposit_txid_wrong_network")
 		case "binance_not_configured":
 			text = i18n.TSimple(lang, "binance_not_configured")
 		case "binance_api_error":
@@ -769,6 +771,60 @@ func (h *BotHandler) handleTxIDInput(ctx context.Context, msg *telego.Message, t
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Msg("send deposit success failed")
 	}
+}
+
+func parseDepositValues(raw string) []string {
+	raw = strings.ReplaceAll(raw, "\r", "\n")
+	replacer := strings.NewReplacer(";", "\n", ",", "\n", "|", "\n")
+	raw = replacer.Replace(raw)
+
+	parts := strings.Split(raw, "\n")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value := strings.TrimSpace(part)
+		if value == "" {
+			continue
+		}
+		items = append(items, value)
+	}
+
+	return items
+}
+
+func formatDepositRoutes(networkRaw, addressRaw string) string {
+	networks := parseDepositValues(networkRaw)
+	addresses := parseDepositValues(addressRaw)
+
+	if len(networks) == 0 && len(addresses) == 0 {
+		return "- N/A"
+	}
+
+	maxLen := len(networks)
+	if len(addresses) > maxLen {
+		maxLen = len(addresses)
+	}
+
+	routes := make([]string, 0, maxLen)
+	for i := 0; i < maxLen; i++ {
+		network := "N/A"
+		address := "N/A"
+
+		if len(networks) > i {
+			network = networks[i]
+		} else if len(networks) == 1 {
+			network = networks[0]
+		}
+
+		if len(addresses) > i {
+			address = addresses[i]
+		} else if len(addresses) == 1 {
+			address = addresses[0]
+		}
+
+		routes = append(routes, fmt.Sprintf("- %s: <code>%s</code>", html.EscapeString(network), html.EscapeString(address)))
+	}
+
+	return strings.Join(routes, "\n")
 }
 
 // StartDailyProductBroadcast runs a background loop that checks every minute
