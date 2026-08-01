@@ -29,7 +29,7 @@
                 <th>ID</th>
                 <th>Nội dung (VI)</th>
                 <th>Nội dung (EN)</th>
-                <th>Trạng thái</th>
+                <th>Hiển thị Rule & FAQ</th>
                 <th>Gửi sau mua</th>
                 <th>Thao tác</th>
             </tr>
@@ -40,7 +40,7 @@
                 <td>{{.ID}}</td>
                 <td>{{.ContentVI}}</td>
                 <td>{{.ContentEN}}</td>
-                <td>{{if .Active}}<span class="badge badge-success">Đang bật</span>{{else}}<span class="badge badge-danger">Đang tắt</span>{{end}}</td>
+                <td>{{if .Active}}<span class="badge badge-success">Có</span>{{else}}<span class="badge badge-danger">Không</span>{{end}}</td>
                 <td>{{if .ShowAfterPurchase}}<span class="badge badge-success">Có</span>{{else}}<span class="badge">Không</span>{{end}}</td>
                 <td class="actions">
                     <a href="/admin/notes/{{.ID}}/edit" class="btn btn-primary btn-sm">Sửa</a>

@@ -299,14 +299,14 @@ func (r *NoteRepo) Delete(ctx context.Context, id int) error {
 	return err
 }
 
-// ListAfterPurchaseNotes returns active notes with show_after_purchase = true
+// ListAfterPurchaseNotes returns notes with show_after_purchase = true
 // that apply to the given productID. Notes with no product entries apply to all.
 func (r *NoteRepo) ListAfterPurchaseNotes(ctx context.Context, productID int) ([]models.Note, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT n.id, n.content_vi, n.content_en, n.active, COALESCE(n.show_after_purchase, false)
 		FROM notes n
 		LEFT JOIN note_products np ON np.note_id = n.id
-		WHERE n.active = true AND COALESCE(n.show_after_purchase, false) = true
+		WHERE COALESCE(n.show_after_purchase, false) = true
 		AND (np.product_id IS NULL OR np.product_id = $1)
 		ORDER BY n.id
 	`, productID)
