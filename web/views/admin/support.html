@@ -1,0 +1,26 @@
+<div class="card">
+    {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
+    {{if .Success}}<div class="alert alert-success">{{.Success}}</div>{{end}}
+    <h3>Cấu hình thông tin hỗ trợ</h3>
+    <p style="color:#666;margin-bottom:16px">
+        Thông tin này sẽ hiển thị khi người dùng bấm nút <strong>Hỗ trợ</strong> trong bot Telegram.
+    </p>
+    <form method="POST" action="/admin/support">
+        <div class="form-group">
+            <label>Telegram Username hỗ trợ</label>
+            <input type="text" name="telegram_username" value="{{.Config.TelegramUsername}}" placeholder="VD: startshop666" required>
+            <small style="color:#888">Username Telegram của admin hỗ trợ (không cần @)</small>
+        </div>
+        <div class="form-group">
+            <label>Tin nhắn tùy chỉnh (Tiếng Việt)</label>
+            <textarea name="custom_message_vi" placeholder="Để trống để dùng mặc định">{{.Config.CustomMessageVI}}</textarea>
+            <small style="color:#888">Mặc định: "Liên hệ admin: @username"</small>
+        </div>
+        <div class="form-group">
+            <label>Tin nhắn tùy chỉnh (Tiếng Anh)</label>
+            <textarea name="custom_message_en" placeholder="Để trống để dùng mặc định">{{.Config.CustomMessageEN}}</textarea>
+            <small style="color:#888">Mặc định: "Contact admin: @username"</small>
+        </div>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+    </form>
+</div>

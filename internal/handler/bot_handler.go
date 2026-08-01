@@ -68,6 +68,36 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 	// Get user language
 	lang := h.getUserLang(ctx, teleID)
 
+	// Check for /tb broadcast with media (photo, video, animation)
+	if msg.Caption != "" && strings.HasPrefix(strings.TrimSpace(msg.Caption), "/tb") {
+		if !h.hasTelegramAdminAccess(ctx, teleID) {
+			params := tu.Message(tu.ID(msg.Chat.ID), "❌ Bạn không có quyền sử dụng lệnh này.")
+			h.bot.SendMessage(ctx, params)
+			return
+		}
+
+		captionText := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(msg.Caption), "/tb"))
+
+		var fileID string
+		var mediaType string
+
+		switch {
+		case len(msg.Photo) > 0:
+			photo := msg.Photo[len(msg.Photo)-1]
+			fileID = photo.FileID
+			mediaType = "photo"
+		case msg.Video != nil:
+			fileID = msg.Video.FileID
+			mediaType = "video"
+		case msg.Animation != nil:
+			fileID = msg.Animation.FileID
+			mediaType = "animation"
+		}
+
+		h.broadcastMediaByAdminCommand(ctx, msg.Chat.ID, teleID, fileID, mediaType, captionText)
+		return
+	}
+
 	text := strings.TrimSpace(msg.Text)
 
 	// Check for /start command
@@ -118,6 +148,10 @@ func (h *BotHandler) handleMessage(ctx context.Context, msg *telego.Message) {
 		h.handleSupport(ctx, msg.Chat.ID, lang)
 		return
 	case i18n.TSimple("vi", "btn_notes"), i18n.TSimple("en", "btn_notes"):
+		if !h.isNotesMenuVisible(ctx) {
+			h.sendMainMenu(ctx, msg.Chat.ID, lang)
+			return
+		}
 		h.handleNotes(ctx, msg.Chat.ID, lang)
 		return
 	}
@@ -159,9 +193,9 @@ func (h *BotHandler) sendStartGreeting(ctx context.Context, chatID int64, firstN
 	}
 }
 
-// sendMainMenu sends the 5-button main menu.
+// sendMainMenu sends the main menu.
 func (h *BotHandler) sendMainMenu(ctx context.Context, chatID int64, lang string) {
-	keyboard := tu.Keyboard(
+	rows := [][]telego.KeyboardButton{
 		tu.KeyboardRow(
 			tu.KeyboardButton(i18n.TSimple(lang, "btn_buy")),
 			tu.KeyboardButton(i18n.TSimple(lang, "btn_profile")),
@@ -169,10 +203,14 @@ func (h *BotHandler) sendMainMenu(ctx context.Context, chatID int64, lang string
 		tu.KeyboardRow(
 			tu.KeyboardButton(i18n.TSimple(lang, "btn_deposit")), tu.KeyboardButton(i18n.TSimple(lang, "btn_support")),
 		),
-		tu.KeyboardRow(
+	}
+	if h.isNotesMenuVisible(ctx) {
+		rows = append(rows, tu.KeyboardRow(
 			tu.KeyboardButton(i18n.TSimple(lang, "btn_notes")),
-		),
-	).WithResizeKeyboard()
+		))
+	}
+
+	keyboard := tu.Keyboard(rows...).WithResizeKeyboard()
 
 	params := tu.Message(tu.ID(chatID), i18n.TSimple(lang, "welcome")).
 		WithReplyMarkup(keyboard).
@@ -181,6 +219,14 @@ func (h *BotHandler) sendMainMenu(ctx context.Context, chatID int64, lang string
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Msg("send main menu failed")
 	}
+}
+
+func (h *BotHandler) isNotesMenuVisible(ctx context.Context) bool {
+	menuConfig, err := h.svc.NoteRepo.GetBotMenuConfig(ctx)
+	if err != nil {
+		return true
+	}
+	return menuConfig.ShowNotesMenu
 }
 
 // handleProfile shows user profile.
@@ -275,14 +321,32 @@ func (h *BotHandler) handleDepositPrompt(ctx context.Context, chatID int64, tele
 // handleSupport sends support information.
 func (h *BotHandler) handleSupport(ctx context.Context, chatID int64, lang string) {
 	adminUsername := "admin"
-	if len(h.cfg.AdminTeleIDs) > 0 {
-		adminUsername = "startshop666" // Would need to resolve username from tele_id
+	supportLink := "https://t.me/admin"
+
+	sc, err := h.svc.NoteRepo.GetSupportConfig(ctx)
+	if err == nil && sc.TelegramUsername != "" {
+		adminUsername = sc.TelegramUsername
+		supportLink = "https://t.me/" + adminUsername
 	}
 
-	text := i18n.T(lang, "support_message", map[string]interface{}{
-		"AdminUsername": adminUsername,
-		"SupportLink":   "https://t.me/" + adminUsername,
-	})
+	// Use custom message if provided
+	var text string
+	if sc != nil {
+		customMsg := sc.CustomMessageVI
+		if lang == "en" {
+			customMsg = sc.CustomMessageEN
+		}
+		if customMsg != "" {
+			text = customMsg
+		}
+	}
+
+	if text == "" {
+		text = i18n.T(lang, "support_message", map[string]interface{}{
+			"AdminUsername": adminUsername,
+			"SupportLink":   supportLink,
+		})
+	}
 
 	params := tu.Message(tu.ID(chatID), text).WithParseMode(telego.ModeMarkdown)
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
@@ -491,6 +555,27 @@ func (h *BotHandler) handleBuyConfirm(ctx context.Context, cb *telego.CallbackQu
 		log.Error().Err(err).Msg("send order success failed")
 	}
 
+
+	// Send product description if enabled
+	if product != nil && product.ShowDescription && product.Description(lang) != "" {
+		descParams := tu.Message(tu.ID(chatID), product.Description(lang))
+		if _, err := h.bot.SendMessage(ctx, descParams); err != nil {
+			log.Error().Err(err).Msg("send product description failed")
+		}
+	}
+
+	// Send Rule & FAQ notes after purchase if enabled
+	notes, _ := h.svc.NoteRepo.ListAfterPurchaseNotes(ctx, productID)
+	for _, note := range notes {
+		content := note.Content(lang)
+		if content != "" {
+			noteParams := tu.Message(tu.ID(chatID), content)
+			if _, err := h.bot.SendMessage(ctx, noteParams); err != nil {
+				log.Error().Err(err).Int("note_id", note.ID).Msg("send note after purchase failed")
+			}
+		}
+	}
+
 	// Send account file
 	file := tu.Document(tu.ID(chatID),
 		telego.InputFile{
@@ -600,6 +685,69 @@ func (h *BotHandler) broadcastByAdminCommand(ctx context.Context, chatID int64, 
 	params := tu.Message(tu.ID(chatID), result)
 	if _, err := h.bot.SendMessage(ctx, params); err != nil {
 		log.Error().Err(err).Int64("admin", adminTeleID).Msg("tb command: send result failed")
+	}
+}
+
+// broadcastMediaByAdminCommand sends a media message (photo/video/animation)
+// to all registered users. Used by /tb command when admin sends media with caption.
+func (h *BotHandler) broadcastMediaByAdminCommand(ctx context.Context, chatID int64, adminTeleID int64, fileID string, mediaType string, captionText string) {
+	users, err := h.svc.UserRepo.ListAllUserLangs(ctx)
+	if err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("tb media command: failed to list users")
+		params := tu.Message(tu.ID(chatID), "❌ Không thể lấy danh sách người dùng.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	if len(users) == 0 {
+		params := tu.Message(tu.ID(chatID), "ℹ️ Chưa có người dùng nào để gửi thông báo.")
+		h.bot.SendMessage(ctx, params)
+		return
+	}
+
+	sent := 0
+	failed := 0
+
+	for _, u := range users {
+		var err error
+
+		switch mediaType {
+		case "photo":
+			params := tu.Photo(tu.ID(u.TeleID), telego.InputFile{FileID: fileID})
+			if captionText != "" {
+				params = params.WithCaption(captionText)
+			}
+			_, err = h.bot.SendPhoto(ctx, params)
+		case "video":
+			params := tu.Video(tu.ID(u.TeleID), telego.InputFile{FileID: fileID})
+			if captionText != "" {
+				params = params.WithCaption(captionText)
+			}
+			_, err = h.bot.SendVideo(ctx, params)
+		case "animation":
+			params := tu.Animation(tu.ID(u.TeleID), telego.InputFile{FileID: fileID})
+			if captionText != "" {
+				params = params.WithCaption(captionText)
+			}
+			_, err = h.bot.SendAnimation(ctx, params)
+		default:
+			err = fmt.Errorf("unsupported media type: %s", mediaType)
+		}
+
+		if err != nil {
+			failed++
+			log.Warn().Err(err).Int64("user", u.TeleID).Int64("admin", adminTeleID).Msg("tb media command: send failed")
+		} else {
+			sent++
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	result := fmt.Sprintf("✅ Đã gửi thông báo. Thành công: %d | Thất bại: %d", sent, failed)
+	params := tu.Message(tu.ID(chatID), result)
+	if _, err := h.bot.SendMessage(ctx, params); err != nil {
+		log.Error().Err(err).Int64("admin", adminTeleID).Msg("tb media command: send result failed")
 	}
 }
 

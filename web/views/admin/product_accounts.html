@@ -72,15 +72,15 @@
                 <th style="width:60px">ID</th>
                 <th>Dữ liệu tài khoản</th>
                 <th style="width:100px">Trạng thái</th>
-                <th style="width:100px">Order ID</th>
-                <th style="width:160px">Người mua</th>
+                <th style="width:110px">Kích hoạt</th>
                 <th style="width:140px">Ngày thêm</th>
+                <th style="width:140px">Ngày bán</th>
                 <th style="width:80px">Thao tác</th>
             </tr>
         </thead>
         <tbody>
             {{range .Accounts}}
-            <tr>
+            <tr{{if not .Active}} style="opacity:0.5"{{end}}>
                 <td>{{.ID}}</td>
                 <td><code style="background:#f4f4f4;padding:2px 6px;border-radius:3px;font-size:13px;word-break:break-all">{{.AccountData}}</code></td>
                 <td>
@@ -90,29 +90,35 @@
                     <span class="badge badge-success">Còn trống</span>
                     {{end}}
                 </td>
-                <td>{{if .Used}}#{{.OrderID}}{{else}}-{{end}}</td>
                 <td>
-                    {{if .Used}}
-                        {{if .BuyerUsername}}
-                            {{if gt .BuyerTeleID 0}}
-                                <span title="Telegram ID: {{.BuyerTeleID}}">@{{.BuyerUsername}}</span>
-                            {{else}}
-                                @{{.BuyerUsername}}
-                            {{end}}
+                    {{if not .Used}}
+                    <form method="POST" action="/admin/products/{{$.Product.ID}}/accounts/{{.ID}}/toggle" style="display:inline;">
+                        {{if .Active}}
+                        <button type="submit" class="btn btn-sm btn-success" title="Đang bật — bấm để tắt">Bật</button>
                         {{else}}
-                            -
+                        <button type="submit" class="btn btn-sm btn-outline" title="Đang tắt — bấm để bật" style="color:#999;border-color:#ccc;">Tắt</button>
                         {{end}}
+                    </form>
                     {{else}}
-                        -
+                    <span style="color:#999;font-size:12px;">-</span>
                     {{end}}
                 </td>
                 <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+                <td>
+                    {{if .SoldAt}}
+                    {{.SoldAt.Format "2006-01-02 15:04"}}
+                    {{else}}
+                    <span style="color:#999;font-size:12px;">-</span>
+                    {{end}}
+                </td>
                 <td>
                     {{if not .Used}}
                     <form method="POST" action="/admin/products/{{$.Product.ID}}/accounts/{{.ID}}/delete"
                           style="display:inline" onsubmit="return confirm('Xóa tài khoản này?')">
                         <button class="btn btn-danger btn-sm">Xóa</button>
                     </form>
+                    {{else}}
+                    <span style="color:#999;font-size:12px;">-</span>
                     {{end}}
                 </td>
             </tr>

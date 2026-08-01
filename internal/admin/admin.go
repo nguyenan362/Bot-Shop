@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"encoding/json"
+
 	"context"
 	"fmt"
 	"strconv"
@@ -78,11 +80,13 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	admin.Get("/products/:id/accounts", h.productAccounts)
 	admin.Post("/products/:id/accounts/upload", h.uploadAccounts)
 	admin.Post("/products/:id/accounts/:aid/delete", h.deleteAccount)
+	admin.Post("/products/:id/accounts/:aid/toggle", h.toggleAccountActive)
 	admin.Post("/products/:id/accounts/clear", h.clearUnusedAccounts)
 	admin.Post("/products/:id/toggle", h.toggleProduct)
 
 	// Notes
 	admin.Get("/notes", h.listNotes)
+	admin.Post("/notes/menu-visibility", h.updateNotesMenuVisibility)
 	admin.Get("/notes/new", h.newNote)
 	admin.Post("/notes/new", h.createNote)
 	admin.Get("/notes/:id/edit", h.editNote)
@@ -91,14 +95,18 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 
 	// Orders & Users
 	admin.Get("/orders", h.listOrders)
+	admin.Get("/orders/:id/accounts", h.orderAccounts)
 	admin.Get("/users", h.listUsers)
 	admin.Post("/users/:id/ban", h.banUser)
 	admin.Post("/users/:id/unban", h.unbanUser)
+	admin.Post("/users/:id/adjust-balance", h.adjustBalance)
 	admin.Get("/deposits", h.listDeposits)
 
 	// Binance Config
 	admin.Get("/binance", h.binanceConfig)
 	admin.Post("/binance", h.updateBinanceConfig)
+	admin.Get("/support", h.supportConfig)
+	admin.Post("/support", h.updateSupportConfig)
 }
 
 // ---- Auth ----
@@ -229,6 +237,7 @@ func (h *AdminHandler) createProduct(c *fiber.Ctx) error {
 		DescriptionVI: c.FormValue("description_vi"),
 		DescriptionEN: c.FormValue("description_en"),
 		Active:        c.FormValue("active") == "on",
+		ShowDescription: c.FormValue("show_description") == "on",
 	}
 
 	if err := h.productRepo.Create(c.Context(), p); err != nil {
@@ -274,6 +283,7 @@ func (h *AdminHandler) updateProduct(c *fiber.Ctx) error {
 		DescriptionVI: c.FormValue("description_vi"),
 		DescriptionEN: c.FormValue("description_en"),
 		Active:        c.FormValue("active") == "on",
+		ShowDescription: c.FormValue("show_description") == "on",
 	}
 
 	if err := h.productRepo.Update(c.Context(), p); err != nil {
@@ -387,6 +397,27 @@ func (h *AdminHandler) deleteAccount(c *fiber.Ctx) error {
 	return c.Redirect("/admin/products/" + productID + "/accounts?deleted=1")
 }
 
+func (h *AdminHandler) toggleAccountActive(c *fiber.Ctx) error {
+	productID := c.Params("id")
+	accountID, _ := strconv.Atoi(c.Params("aid"))
+
+	newActive, err := h.productRepo.ToggleAccountActive(c.Context(), accountID)
+	if err != nil {
+		log.Error().Err(err).Int("account_id", accountID).Msg("toggle account active failed")
+		return c.Status(500).SendString("Lỗi khi thay đổi trạng thái tài khoản")
+	}
+
+	// Update available count
+	pid, _ := strconv.Atoi(productID)
+	if newActive {
+		_ = h.productRepo.IncrementStock(c.Context(), pid, 1)
+	} else {
+		_ = h.productRepo.DeductStock(c.Context(), pid, 1)
+	}
+
+	return c.Redirect("/admin/products/" + productID + "/accounts")
+}
+
 func (h *AdminHandler) clearUnusedAccounts(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	deleted, err := h.productRepo.DeleteAllUnusedAccounts(c.Context(), id)
@@ -414,39 +445,64 @@ func (h *AdminHandler) toggleProduct(c *fiber.Ctx) error {
 func (h *AdminHandler) listNotes(c *fiber.Ctx) error {
 	notes, err := h.noteRepo.ListAll(c.Context())
 	if err != nil {
-		return c.Status(500).SendString("Lỗi tải danh sách lưu ý")
+		return c.Status(500).SendString("Lỗi tải danh sách Rule & FAQ")
+	}
+	menuConfig, err := h.noteRepo.GetBotMenuConfig(c.Context())
+	if err != nil {
+		menuConfig = &models.BotMenuConfig{ShowNotesMenu: true}
 	}
 	return c.Render("admin/notes", fiber.Map{
-		"Title": "Lưu ý",
-		"Notes": notes,
+		"Title":      "Rule & FAQ",
+		"Notes":      notes,
+		"MenuConfig": menuConfig,
+		"MenuSaved":  c.Query("saved") == "menu",
 	}, "partials/base")
 }
 
+func (h *AdminHandler) updateNotesMenuVisibility(c *fiber.Ctx) error {
+	cfg := &models.BotMenuConfig{
+		ShowNotesMenu: c.FormValue("show_notes_menu") == "on",
+	}
+	if err := h.noteRepo.UpdateBotMenuConfig(c.Context(), cfg); err != nil {
+		return c.Status(500).SendString("Lỗi khi cập nhật cấu hình menu Rule & FAQ")
+	}
+	return c.Redirect("/admin/notes?saved=menu")
+}
+
 func (h *AdminHandler) newNote(c *fiber.Ctx) error {
+	products, _ := h.productRepo.ListAll(c.Context())
 	return c.Render("admin/note_form", fiber.Map{
-		"Title":  "Thêm lưu ý",
+		"Title":  "Thêm Rule & FAQ",
 		"Action": "/admin/notes/new",
+		"Products": products,
 	}, "partials/base")
 }
 
 func (h *AdminHandler) createNote(c *fiber.Ctx) error {
 	n := &models.Note{
-		ContentVI: c.FormValue("content_vi"),
-		ContentEN: c.FormValue("content_en"),
-		Active:    c.FormValue("active") == "on",
+		ContentVI:         c.FormValue("content_vi"),
+		ContentEN:         c.FormValue("content_en"),
+		Active:            c.FormValue("active") == "on",
+		ShowAfterPurchase: c.FormValue("show_after_purchase") == "on",
 	}
 	if err := h.noteRepo.Create(c.Context(), n); err != nil {
+		products, _ := h.productRepo.ListAll(c.Context())
 		return c.Render("admin/note_form", fiber.Map{
-			"Title":  "Thêm lưu ý",
+			"Title":  "Thêm Rule & FAQ",
 			"Action": "/admin/notes/new",
 			"Error":  err.Error(),
 			"Note":   n,
+			"Products": products,
 		}, "partials/base")
 	}
+	// Save product associations
+	productIDs := parseMultiInt(c.FormValue("product_ids"))
+	_ = h.noteRepo.SaveNoteProducts(c.Context(), n.ID, productIDs)
 	return c.Redirect("/admin/notes")
 }
 
 func (h *AdminHandler) editNote(c *fiber.Ctx) error {
+	products, _ := h.productRepo.ListAll(c.Context())
 	id, _ := strconv.Atoi(c.Params("id"))
 	notes, err := h.noteRepo.ListAll(c.Context())
 	if err != nil {
@@ -460,35 +516,80 @@ func (h *AdminHandler) editNote(c *fiber.Ctx) error {
 		}
 	}
 	if note == nil {
-		return c.Status(404).SendString("Không tìm thấy lưu ý")
+		return c.Status(404).SendString("Không tìm thấy Rule & FAQ")
 	}
+	selectedIDs, _ := h.noteRepo.GetNoteProducts(c.Context(), id)
+	selectedIDsJSON, _ := json.Marshal(selectedIDs)
 	return c.Render("admin/note_form", fiber.Map{
-		"Title":  "Sửa lưu ý",
-		"Action": "/admin/notes/" + c.Params("id") + "/edit",
-		"Note":   note,
+		"Title":            "Sửa Rule & FAQ",
+		"Action":           "/admin/notes/" + c.Params("id") + "/edit",
+		"Note":             note,
+		"Products":         products,
+		"SelectedIDs":      selectedIDs,
+		"SelectedIDsJSON":  string(selectedIDsJSON),
 	}, "partials/base")
 }
 
 func (h *AdminHandler) updateNote(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	n := &models.Note{
-		ID:        id,
-		ContentVI: c.FormValue("content_vi"),
-		ContentEN: c.FormValue("content_en"),
-		Active:    c.FormValue("active") == "on",
+		ID:                id,
+		ContentVI:         c.FormValue("content_vi"),
+		ContentEN:         c.FormValue("content_en"),
+		Active:            c.FormValue("active") == "on",
+		ShowAfterPurchase: c.FormValue("show_after_purchase") == "on",
 	}
 	if err := h.noteRepo.Update(c.Context(), n); err != nil {
-		return c.Status(500).SendString("Lỗi khi cập nhật lưu ý")
+		return c.Status(500).SendString("Lỗi khi cập nhật Rule & FAQ")
 	}
+	// Save product associations
+	productIDs := parseMultiInt(c.FormValue("product_ids"))
+	_ = h.noteRepo.SaveNoteProducts(c.Context(), n.ID, productIDs)
 	return c.Redirect("/admin/notes")
 }
 
 func (h *AdminHandler) deleteNote(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 	if err := h.noteRepo.Delete(c.Context(), id); err != nil {
-		return c.Status(500).SendString("Lỗi khi xóa lưu ý")
+		return c.Status(500).SendString("Lỗi khi xóa Rule & FAQ")
 	}
 	return c.Redirect("/admin/notes")
+}
+
+
+// parseMultiInt parses a comma-separated string of ints.
+func parseMultiInt(val string) []int {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return nil
+	}
+	parts := strings.Split(val, ",")
+	var result []int
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			continue
+		}
+		result = append(result, n)
+	}
+	return result
+}
+
+// parseOptionalInt parses a form value to int, returns 0 if empty.
+func parseOptionalInt(val string) int {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // ---- Orders ----
@@ -515,6 +616,21 @@ func (h *AdminHandler) listOrders(c *fiber.Ctx) error {
 		"Orders": orders,
 		"Query":  q,
 	}, "partials/base")
+}
+
+func (h *AdminHandler) orderAccounts(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Mã đơn hàng không hợp lệ"})
+	}
+
+	accounts, err := h.productRepo.ListAccountsByOrder(c.Context(), id)
+	if err != nil {
+		log.Error().Err(err).Int64("order_id", id).Msg("failed to list order accounts")
+		return c.Status(500).JSON(fiber.Map{"error": "Không thể tải danh sách tài khoản"})
+	}
+
+	return c.JSON(accounts)
 }
 
 // ---- Users ----
@@ -585,6 +701,30 @@ func (h *AdminHandler) unbanUser(c *fiber.Ctx) error {
 
 	if err := h.userRepo.SetBanned(c.Context(), teleID, false); err != nil {
 		return c.Status(500).SendString("Không thể bỏ ban người dùng")
+	}
+
+	return c.Redirect("/admin/users")
+}
+
+func (h *AdminHandler) adjustBalance(c *fiber.Ctx) error {
+	teleID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).SendString("Telegram ID không hợp lệ")
+	}
+
+	amountStr := strings.TrimSpace(c.FormValue("amount"))
+	amount, err := decimal.NewFromString(amountStr)
+	if err != nil {
+		return c.Status(400).SendString("Số tiền không hợp lệ")
+	}
+
+	if amount.IsZero() {
+		return c.Status(400).SendString("Số tiền không được bằng 0")
+	}
+
+	if err := h.userRepo.AddBalance(c.Context(), teleID, amount); err != nil {
+		log.Error().Err(err).Int64("tele_id", teleID).Str("amount", amount.String()).Msg("adjust balance failed")
+		return c.Status(500).SendString("Không thể điều chỉnh số dư")
 	}
 
 	return c.Redirect("/admin/users")
@@ -664,5 +804,48 @@ func (h *AdminHandler) updateBinanceConfig(c *fiber.Ctx) error {
 		"Title":   "Cấu hình nạp Binance",
 		"Config":  bc,
 		"Success": "Đã lưu cấu hình và xác thực API key thành công!",
+	}, "partials/base")
+}
+
+// ---- Support Config ----
+
+func (h *AdminHandler) supportConfig(c *fiber.Ctx) error {
+	sc, err := h.noteRepo.GetSupportConfig(c.Context())
+	if err != nil {
+		sc = &models.SupportConfig{}
+	}
+	return c.Render("admin/support", fiber.Map{
+		"Title":  "Cấu hình hỗ trợ",
+		"Config": sc,
+	}, "partials/base")
+}
+
+func (h *AdminHandler) updateSupportConfig(c *fiber.Ctx) error {
+	sc := &models.SupportConfig{
+		TelegramUsername: strings.TrimSpace(c.FormValue("telegram_username")),
+		CustomMessageVI:  strings.TrimSpace(c.FormValue("custom_message_vi")),
+		CustomMessageEN:  strings.TrimSpace(c.FormValue("custom_message_en")),
+	}
+
+	if sc.TelegramUsername == "" {
+		return c.Render("admin/support", fiber.Map{
+			"Title":  "Cấu hình hỗ trợ",
+			"Config": sc,
+			"Error":  "Vui lòng nhập tên Telegram username.",
+		}, "partials/base")
+	}
+
+	if err := h.noteRepo.UpdateSupportConfig(c.Context(), sc); err != nil {
+		return c.Render("admin/support", fiber.Map{
+			"Title":  "Cấu hình hỗ trợ",
+			"Config": sc,
+			"Error":  "Lỗi khi lưu: " + err.Error(),
+		}, "partials/base")
+	}
+
+	return c.Render("admin/support", fiber.Map{
+		"Title":   "Cấu hình hỗ trợ",
+		"Config":  sc,
+		"Success": "Đã lưu cấu hình hỗ trợ!",
 	}, "partials/base")
 }

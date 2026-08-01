@@ -1,7 +1,27 @@
 <div class="card">
+    <h2 style="margin-bottom:12px">Hiển thị trên menu bot</h2>
+    <form method="POST" action="/admin/notes/menu-visibility" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <label class="checkbox-group" style="margin:0">
+            <input type="checkbox" name="show_notes_menu" {{if .MenuConfig.ShowNotesMenu}}checked{{end}}>
+            <span>Hiển thị nút Rule & FAQ trong menu Telegram bot</span>
+        </label>
+        <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+    </form>
+</div>
+
+{{if .MenuSaved}}
+<script>
+    window.addEventListener('DOMContentLoaded', function () {
+        alert('Đã lưu cấu hình hiển thị Rule & FAQ trên menu bot.');
+        window.history.replaceState(null, '', '/admin/notes');
+    });
+</script>
+{{end}}
+
+<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2>Danh sách lưu ý</h2>
-        <a href="/admin/notes/new" class="btn btn-primary">+ Thêm lưu ý</a>
+        <h2>Danh sách Rule & FAQ</h2>
+        <a href="/admin/notes/new" class="btn btn-primary">+ Thêm Rule & FAQ</a>
     </div>
     <table>
         <thead>
@@ -10,6 +30,7 @@
                 <th>Nội dung (VI)</th>
                 <th>Nội dung (EN)</th>
                 <th>Trạng thái</th>
+                <th>Gửi sau mua</th>
                 <th>Thao tác</th>
             </tr>
         </thead>
@@ -20,15 +41,16 @@
                 <td>{{.ContentVI}}</td>
                 <td>{{.ContentEN}}</td>
                 <td>{{if .Active}}<span class="badge badge-success">Đang bật</span>{{else}}<span class="badge badge-danger">Đang tắt</span>{{end}}</td>
+                <td>{{if .ShowAfterPurchase}}<span class="badge badge-success">Có</span>{{else}}<span class="badge">Không</span>{{end}}</td>
                 <td class="actions">
                     <a href="/admin/notes/{{.ID}}/edit" class="btn btn-primary btn-sm">Sửa</a>
-                    <form method="POST" action="/admin/notes/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Xóa lưu ý này?')">
+                    <form method="POST" action="/admin/notes/{{.ID}}/delete" style="display:inline" onsubmit="return confirm('Xóa Rule & FAQ này?')">
                         <button class="btn btn-danger btn-sm">Xóa</button>
                     </form>
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="5" style="text-align:center;color:#999">Chưa có lưu ý nào</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:#999">Chưa có Rule & FAQ nào</td></tr>
             {{end}}
         </tbody>
     </table>

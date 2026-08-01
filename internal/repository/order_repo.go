@@ -239,7 +239,7 @@ func NewNoteRepo(pool *pgxpool.Pool) *NoteRepo {
 // ListActive returns active notes.
 func (r *NoteRepo) ListActive(ctx context.Context) ([]models.Note, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, content_vi, content_en, active FROM notes WHERE active = true ORDER BY id
+		SELECT id, content_vi, content_en, active, COALESCE(show_after_purchase, false) FROM notes WHERE active = true ORDER BY id
 	`)
 	if err != nil {
 		return nil, err
@@ -249,7 +249,7 @@ func (r *NoteRepo) ListActive(ctx context.Context) ([]models.Note, error) {
 	var notes []models.Note
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.ContentVI, &n.ContentEN, &n.Active); err != nil {
+		if err := rows.Scan(&n.ID, &n.ContentVI, &n.ContentEN, &n.Active, &n.ShowAfterPurchase); err != nil {
 			return nil, err
 		}
 		notes = append(notes, n)
@@ -260,7 +260,7 @@ func (r *NoteRepo) ListActive(ctx context.Context) ([]models.Note, error) {
 // ListAll returns all notes (admin).
 func (r *NoteRepo) ListAll(ctx context.Context) ([]models.Note, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, content_vi, content_en, active FROM notes ORDER BY id
+		SELECT id, content_vi, content_en, active, COALESCE(show_after_purchase, false) FROM notes ORDER BY id
 	`)
 	if err != nil {
 		return nil, err
@@ -270,7 +270,7 @@ func (r *NoteRepo) ListAll(ctx context.Context) ([]models.Note, error) {
 	var notes []models.Note
 	for rows.Next() {
 		var n models.Note
-		if err := rows.Scan(&n.ID, &n.ContentVI, &n.ContentEN, &n.Active); err != nil {
+		if err := rows.Scan(&n.ID, &n.ContentVI, &n.ContentEN, &n.Active, &n.ShowAfterPurchase); err != nil {
 			return nil, err
 		}
 		notes = append(notes, n)
@@ -281,15 +281,15 @@ func (r *NoteRepo) ListAll(ctx context.Context) ([]models.Note, error) {
 // Create inserts a new note.
 func (r *NoteRepo) Create(ctx context.Context, n *models.Note) error {
 	return r.pool.QueryRow(ctx, `
-		INSERT INTO notes (content_vi, content_en, active) VALUES ($1, $2, $3) RETURNING id
-	`, n.ContentVI, n.ContentEN, n.Active).Scan(&n.ID)
+		INSERT INTO notes (content_vi, content_en, active, show_after_purchase) VALUES ($1, $2, $3, $4) RETURNING id
+	`, n.ContentVI, n.ContentEN, n.Active, n.ShowAfterPurchase).Scan(&n.ID)
 }
 
 // Update modifies a note.
 func (r *NoteRepo) Update(ctx context.Context, n *models.Note) error {
 	_, err := r.pool.Exec(ctx, `
-		UPDATE notes SET content_vi=$2, content_en=$3, active=$4 WHERE id=$1
-	`, n.ID, n.ContentVI, n.ContentEN, n.Active)
+		UPDATE notes SET content_vi=$2, content_en=$3, active=$4, show_after_purchase=$5 WHERE id=$1
+	`, n.ID, n.ContentVI, n.ContentEN, n.Active, n.ShowAfterPurchase)
 	return err
 }
 
@@ -299,6 +299,91 @@ func (r *NoteRepo) Delete(ctx context.Context, id int) error {
 	return err
 }
 
+// ListAfterPurchaseNotes returns active notes with show_after_purchase = true
+// that apply to the given productID. Notes with no product entries apply to all.
+func (r *NoteRepo) ListAfterPurchaseNotes(ctx context.Context, productID int) ([]models.Note, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT n.id, n.content_vi, n.content_en, n.active, COALESCE(n.show_after_purchase, false)
+		FROM notes n
+		LEFT JOIN note_products np ON np.note_id = n.id
+		WHERE n.active = true AND COALESCE(n.show_after_purchase, false) = true
+		AND (np.product_id IS NULL OR np.product_id = $1)
+		ORDER BY n.id
+	`, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []models.Note
+	for rows.Next() {
+		var n models.Note
+		if err := rows.Scan(&n.ID, &n.ContentVI, &n.ContentEN, &n.Active, &n.ShowAfterPurchase); err != nil {
+			return nil, err
+		}
+		notes = append(notes, n)
+	}
+	return notes, nil
+}
+
+// SaveNoteProducts replaces all product associations for a note.
+func (r *NoteRepo) SaveNoteProducts(ctx context.Context, noteID int, productIDs []int) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM note_products WHERE note_id = $1`, noteID)
+	if err != nil {
+		return err
+	}
+	for _, pid := range productIDs {
+		_, err := r.pool.Exec(ctx, `INSERT INTO note_products (note_id, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, noteID, pid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetNoteProducts returns product IDs associated with a note.
+func (r *NoteRepo) GetNoteProducts(ctx context.Context, noteID int) ([]int, error) {
+	rows, err := r.pool.Query(ctx, `SELECT product_id FROM note_products WHERE note_id = $1 ORDER BY product_id`, noteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// GetBotMenuConfig returns Telegram bot menu visibility settings.
+func (r *NoteRepo) GetBotMenuConfig(ctx context.Context) (*models.BotMenuConfig, error) {
+	cfg := &models.BotMenuConfig{ShowNotesMenu: true}
+	err := r.pool.QueryRow(ctx, `
+		SELECT COALESCE(show_notes_menu, true)
+		FROM bot_menu_config WHERE id = 1
+	`).Scan(&cfg.ShowNotesMenu)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// UpdateBotMenuConfig updates Telegram bot menu visibility settings.
+func (r *NoteRepo) UpdateBotMenuConfig(ctx context.Context, cfg *models.BotMenuConfig) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bot_menu_config (id, show_notes_menu, updated_at)
+		VALUES (1, $1, NOW())
+		ON CONFLICT (id) DO UPDATE
+		SET show_notes_menu = EXCLUDED.show_notes_menu,
+		    updated_at = NOW()
+	`, cfg.ShowNotesMenu)
+	return err
+}
 // ---- Stats ----
 
 type Stats struct {
@@ -328,4 +413,28 @@ func GetStats(ctx context.Context, pool *pgxpool.Pool) (*Stats, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// ---- Support Config ----
+
+// GetSupportConfig returns support contact configuration.
+func (r *NoteRepo) GetSupportConfig(ctx context.Context) (*models.SupportConfig, error) {
+	sc := &models.SupportConfig{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT COALESCE(telegram_username,''), COALESCE(custom_message_vi,''), COALESCE(custom_message_en,'')
+		FROM support_config WHERE id = 1
+	`).Scan(&sc.TelegramUsername, &sc.CustomMessageVI, &sc.CustomMessageEN)
+	if err != nil {
+		return nil, err
+	}
+	return sc, nil
+}
+
+// UpdateSupportConfig updates support contact configuration.
+func (r *NoteRepo) UpdateSupportConfig(ctx context.Context, sc *models.SupportConfig) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE support_config SET telegram_username=$1, custom_message_vi=$2, custom_message_en=$3, updated_at=NOW()
+		WHERE id=1
+	`, sc.TelegramUsername, sc.CustomMessageVI, sc.CustomMessageEN)
+	return err
 }

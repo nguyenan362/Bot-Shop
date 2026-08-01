@@ -25,6 +25,10 @@
             <input type="checkbox" name="active" id="active" {{if .Product}}{{if .Product.Active}}checked{{end}}{{else}}checked{{end}}>
             <label for="active" style="margin:0">Đang bán</label>
         </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" name="show_description" id="show_description" {{if .Product}}{{if .Product.ShowDescription}}checked{{end}}{{end}}>
+            <label for="show_description" style="margin:0">Gửi mô tả sản phẩm cho khách sau khi mua</label>
+        </div>
         <div style="display:flex;gap:8px">
             <button type="submit" class="btn btn-primary">Lưu</button>
             <a href="/admin/products" class="btn" style="background:#6c757d;color:#fff">Hủy</a>

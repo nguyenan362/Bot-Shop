@@ -31,9 +31,11 @@ CREATE TABLE IF NOT EXISTS product_accounts (
     account_data TEXT NOT NULL,       -- "email:pass:info..."
     used         BOOLEAN DEFAULT false,
     order_id     BIGINT,
-    created_at   TIMESTAMPTZ DEFAULT NOW()
+    active        BOOLEAN DEFAULT true,
+    activated_at  TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_product_accounts_available ON product_accounts(product_id, used) WHERE used = false;
+CREATE INDEX IF NOT EXISTS idx_product_accounts_available ON product_accounts(product_id, used, active) WHERE used = false AND active = true;
 
 -- Orders
 CREATE TABLE IF NOT EXISTS orders (
@@ -60,7 +62,7 @@ CREATE TABLE IF NOT EXISTS deposits (
 );
 CREATE INDEX IF NOT EXISTS idx_deposits_trade ON deposits(merchant_trade_no);
 
--- Notes (lưu ý cho user)
+-- Notes (Rule & FAQ cho user)
 CREATE TABLE IF NOT EXISTS notes (
     id         SERIAL PRIMARY KEY,
     content_vi TEXT DEFAULT '',

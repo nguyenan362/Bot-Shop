@@ -21,7 +21,7 @@ func NewProductRepo(pool *pgxpool.Pool) *ProductRepo {
 // ListActive returns all active products.
 func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
 		FROM products WHERE active = true ORDER BY id
 	`)
 	if err != nil {
@@ -33,7 +33,7 @@ func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) 
 	for rows.Next() {
 		var p models.Product
 		if err := rows.Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.CreatedAt); err != nil {
+			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -44,7 +44,7 @@ func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) 
 // ListAll returns all products including inactive (admin).
 func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
 		FROM products ORDER BY id
 	`)
 	if err != nil {
@@ -56,7 +56,7 @@ func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 	for rows.Next() {
 		var p models.Product
 		if err := rows.Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.CreatedAt); err != nil {
+			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -68,10 +68,10 @@ func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 func (r *ProductRepo) GetByID(ctx context.Context, id int) (*models.Product, error) {
 	p := &models.Product{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
 		FROM products WHERE id = $1
 	`, id).Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-		&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.CreatedAt)
+		&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -81,19 +81,19 @@ func (r *ProductRepo) GetByID(ctx context.Context, id int) (*models.Product, err
 // Create inserts a new product.
 func (r *ProductRepo) Create(ctx context.Context, p *models.Product) error {
 	return r.pool.QueryRow(ctx, `
-		INSERT INTO products (name_vi, name_en, price_usdt, stock, description_vi, description_en, active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO products (name_vi, name_en, price_usdt, stock, description_vi, description_en, active, show_description)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id
-	`, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active).Scan(&p.ID)
+	`, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription).Scan(&p.ID)
 }
 
 // Update modifies a product.
 func (r *ProductRepo) Update(ctx context.Context, p *models.Product) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE products SET name_vi=$2, name_en=$3, price_usdt=$4, stock=$5,
-		       description_vi=$6, description_en=$7, active=$8
+		       description_vi=$6, description_en=$7, active=$8, show_description=$9
 		WHERE id=$1
-	`, p.ID, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active)
+	`, p.ID, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription)
 	return err
 }
 
@@ -146,12 +146,12 @@ func (r *ProductRepo) ClaimAccounts(ctx context.Context, productID int, orderID 
 		SET used = true, order_id = $3
 		WHERE id IN (
 			SELECT id FROM product_accounts
-			WHERE product_id = $1 AND used = false
+			WHERE product_id = $1 AND used = false AND COALESCE(active, true)
 			ORDER BY id
 			LIMIT $2
 			FOR UPDATE SKIP LOCKED
 		)
-		RETURNING id, product_id, account_data, used, order_id, created_at
+		RETURNING id, product_id, account_data, used, order_id, COALESCE(active, true), activated_at, created_at
 	`, productID, qty, orderID)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (r *ProductRepo) ClaimAccounts(ctx context.Context, productID int, orderID 
 	var accounts []models.ProductAccount
 	for rows.Next() {
 		var a models.ProductAccount
-		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.Active, &a.ActivatedAt, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, a)
@@ -174,14 +174,16 @@ func (r *ProductRepo) CountAvailable(ctx context.Context, productID int) (int, e
 	var count int
 	err := r.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM product_accounts
-		WHERE product_id = $1 AND used = false
+		WHERE product_id = $1 AND used = false AND COALESCE(active, true)
 	`, productID).Scan(&count)
 	return count, err
 }
 
 // ListAccounts returns all accounts for a product with optional filter.
 func (r *ProductRepo) ListAccounts(ctx context.Context, productID int, filter string) ([]models.ProductAccount, error) {
-	query := `SELECT pa.id, pa.product_id, pa.account_data, pa.used, COALESCE(pa.order_id, 0), COALESCE(u.username, ''), COALESCE(o.user_tele_id, 0), pa.created_at
+	query := `SELECT pa.id, pa.product_id, pa.account_data, pa.used, COALESCE(pa.order_id, 0), 
+	                 COALESCE(u.username, ''), COALESCE(o.user_tele_id, 0), 
+	                 COALESCE(pa.active, true), pa.activated_at, pa.created_at, o.created_at
 	          FROM product_accounts pa
 	          LEFT JOIN orders o ON o.id = pa.order_id
 	          LEFT JOIN users u ON u.tele_id = o.user_tele_id
@@ -203,12 +205,53 @@ func (r *ProductRepo) ListAccounts(ctx context.Context, productID int, filter st
 	var accounts []models.ProductAccount
 	for rows.Next() {
 		var a models.ProductAccount
-		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.BuyerUsername, &a.BuyerTeleID, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.BuyerUsername, &a.BuyerTeleID, &a.Active, &a.ActivatedAt, &a.CreatedAt, &a.SoldAt); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, a)
 	}
 	return accounts, nil
+}
+
+// ListAccountsByOrder returns all accounts assigned to a specific order.
+func (r *ProductRepo) ListAccountsByOrder(ctx context.Context, orderID int64) ([]models.ProductAccount, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT pa.id, pa.product_id, pa.account_data, pa.used, COALESCE(pa.order_id, 0), 
+		       COALESCE(u.username, ''), COALESCE(o.user_tele_id, 0),
+		       COALESCE(pa.active, true), pa.activated_at, pa.created_at, o.created_at
+		FROM product_accounts pa
+		LEFT JOIN orders o ON o.id = pa.order_id
+		LEFT JOIN users u ON u.tele_id = o.user_tele_id
+		WHERE pa.order_id = $1
+		ORDER BY pa.id
+	`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var accounts []models.ProductAccount
+	for rows.Next() {
+		var a models.ProductAccount
+		if err := rows.Scan(&a.ID, &a.ProductID, &a.AccountData, &a.Used, &a.OrderID, &a.BuyerUsername, &a.BuyerTeleID, &a.Active, &a.ActivatedAt, &a.CreatedAt, &a.SoldAt); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, a)
+	}
+	return accounts, nil
+}
+
+// ToggleAccountActive toggles the active state of an account.
+func (r *ProductRepo) ToggleAccountActive(ctx context.Context, accountID int) (bool, error) {
+	var newActive bool
+	err := r.pool.QueryRow(ctx, `
+		UPDATE product_accounts 
+		SET active = NOT COALESCE(active, true),
+		    activated_at = CASE WHEN active THEN activated_at ELSE NOW() END
+		WHERE id = $1
+		RETURNING active
+	`, accountID).Scan(&newActive)
+	return newActive, err
 }
 
 // DeleteAccount removes a single unused account.

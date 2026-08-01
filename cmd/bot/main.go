@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sort"
 	"syscall"
 	"time"
 
@@ -198,11 +200,16 @@ func main() {
 
 // runMigrations executes SQL migration files.
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
-	migrationFiles := []string{
-		"migrations/001_init.sql",
-		"migrations/002_binance_deposit_update.sql",
-		"migrations/003_user_timezone.sql",
-		"migrations/004_user_ban.sql",
+	migrationFiles, err := filepath.Glob("migrations/*.sql")
+	if err != nil {
+		log.Error().Err(err).Msg("find migration files failed")
+		return
+	}
+	sort.Strings(migrationFiles)
+
+	if len(migrationFiles) == 0 {
+		log.Warn().Msg("no migration files found")
+		return
 	}
 
 	for _, file := range migrationFiles {

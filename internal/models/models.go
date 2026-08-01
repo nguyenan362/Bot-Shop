@@ -28,6 +28,7 @@ type Product struct {
 	DescriptionVI string          `json:"description_vi"`
 	DescriptionEN string          `json:"description_en"`
 	Active        bool            `json:"active"`
+	ShowDescription bool            `json:"show_description"`
 	CreatedAt     time.Time       `json:"created_at"`
 }
 
@@ -49,14 +50,17 @@ func (p Product) Description(lang string) string {
 
 // ProductAccount represents an actual account in stock.
 type ProductAccount struct {
-	ID            int       `json:"id"`
-	ProductID     int       `json:"product_id"`
-	AccountData   string    `json:"account_data"`
-	Used          bool      `json:"used"`
-	OrderID       int64     `json:"order_id"`
-	BuyerUsername string    `json:"buyer_username"`
-	BuyerTeleID   int64     `json:"buyer_tele_id"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            int        `json:"id"`
+	ProductID     int        `json:"product_id"`
+	AccountData   string     `json:"account_data"`
+	Used          bool       `json:"used"`
+	OrderID       int64      `json:"order_id"`
+	BuyerUsername string     `json:"buyer_username"`
+	BuyerTeleID   int64      `json:"buyer_tele_id"`
+	Active        bool       `json:"active"`
+	ActivatedAt   *time.Time `json:"activated_at,omitempty"`
+	SoldAt        *time.Time `json:"sold_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 // Order represents a purchase order.
@@ -92,6 +96,7 @@ type Note struct {
 	ContentVI string `json:"content_vi"`
 	ContentEN string `json:"content_en"`
 	Active    bool   `json:"active"`
+	ShowAfterPurchase bool            `json:"show_after_purchase"`
 }
 
 // Content returns the note content based on language.
@@ -100,6 +105,19 @@ func (n Note) Content(lang string) string {
 		return n.ContentEN
 	}
 	return n.ContentVI
+}
+
+// BotMenuConfig stores Telegram bot menu visibility settings.
+type BotMenuConfig struct {
+	ShowNotesMenu bool `json:"show_notes_menu"`
+}
+
+// BinanceConfig stores Binance API config for deposit monitoring.
+// SupportConfig stores support contact info (editable in admin panel).
+type SupportConfig struct {
+	TelegramUsername  string `json:"telegram_username"`
+	CustomMessageVI   string `json:"custom_message_vi"`
+	CustomMessageEN   string `json:"custom_message_en"`
 }
 
 // BinanceConfig stores Binance API config for deposit monitoring.

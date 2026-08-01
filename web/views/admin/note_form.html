@@ -1,6 +1,6 @@
 <div class="card">
     {{if .Error}}<div class="alert alert-danger">{{.Error}}</div>{{end}}
-    <form method="POST" action="{{.Action}}">
+    <form method="POST" action="{{.Action}}" id="noteForm">
         <div class="form-group">
             <label>Nội dung (Tiếng Việt)</label>
             <textarea name="content_vi" required>{{if .Note}}{{.Note.ContentVI}}{{end}}</textarea>
@@ -13,9 +13,56 @@
             <input type="checkbox" name="active" id="active" {{if .Note}}{{if .Note.Active}}checked{{end}}{{else}}checked{{end}}>
             <label for="active" style="margin:0">Đang bật</label>
         </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" name="show_after_purchase" id="show_after_purchase" {{if .Note}}{{if .Note.ShowAfterPurchase}}checked{{end}}{{end}}>
+            <label for="show_after_purchase" style="margin:0">Gửi cho khách sau khi mua hàng</label>
+        </div>
+        <div class="form-group" id="productCheckboxes" style="display:none">
+            <label>Áp dụng cho sản phẩm</label>
+            <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;border:1px solid #ddd;padding:8px;border-radius:4px">
+                {{range .Products}}
+                <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;cursor:pointer">
+                    <input type="checkbox" name="product_cb" value="{{.ID}}" class="product-cb">
+                    {{.NameVI}} ({{.PriceUSDT}} USDT)
+                </label>
+                {{end}}
+            </div>
+            <small style="color:#888">Để trống = áp dụng cho tất cả sản phẩm</small>
+        </div>
+        <input type="hidden" name="product_ids" id="product_ids" value="">
         <div style="display:flex;gap:8px">
             <button type="submit" class="btn btn-primary">Lưu</button>
             <a href="/admin/notes" class="btn" style="background:#6c757d;color:#fff">Hủy</a>
         </div>
     </form>
 </div>
+
+<script>
+// Show/hide product checkboxes based on show_after_purchase
+const showAfterPurchase = document.getElementById('show_after_purchase');
+const productCheckboxes = document.getElementById('productCheckboxes');
+function toggleProducts() {
+    productCheckboxes.style.display = showAfterPurchase.checked ? 'block' : 'none';
+}
+showAfterPurchase.addEventListener('change', toggleProducts);
+toggleProducts();
+
+// On form submit, collect checked product IDs into hidden field
+document.getElementById('noteForm').addEventListener('submit', function() {
+    const checked = document.querySelectorAll('.product-cb:checked');
+    const ids = Array.from(checked).map(cb => cb.value);
+    document.getElementById('product_ids').value = ids.join(',');
+});
+
+// Pre-check selected products on edit
+{{if .SelectedIDs}}
+(function() {
+    const selected = {{.SelectedIDsJSON}};
+    document.querySelectorAll('.product-cb').forEach(function(cb) {
+        if (selected.indexOf(parseInt(cb.value)) !== -1) {
+            cb.checked = true;
+        }
+    });
+})();
+{{end}}
+</script>

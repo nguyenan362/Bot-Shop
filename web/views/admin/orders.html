@@ -27,7 +27,11 @@
                 <td>#{{.ID}}</td>
                 <td>{{if .Username}}@{{.Username}}{{else}}{{.UserTeleID}}{{end}}</td>
                 <td>{{.ProductID}}</td>
-                <td>{{.Quantity}}</td>
+                <td>
+                    <a href="#" class="order-sl-link" data-order-id="{{.ID}}" data-product-id="{{.ProductID}}" data-quantity="{{.Quantity}}" onclick="return showOrderAccounts(this, {{.ID}}, {{.ProductID}}, {{.Quantity}})" title="Xem tài khoản đã mua">
+                        {{.Quantity}}
+                    </a>
+                </td>
                 <td>{{.TotalUSDT}}</td>
                 <td>
                     {{if eq .Status "success"}}<span class="badge badge-success">Thành công</span>
@@ -42,3 +46,119 @@
         </tbody>
     </table>
 </div>
+
+<!-- Modal hiển thị tài khoản -->
+<div id="accounts-modal" class="accounts-modal" style="display:none;">
+    <div class="accounts-modal-content">
+        <div class="accounts-modal-header">
+            <h3 id="modal-title">Tài khoản đã mua</h3>
+            <button class="accounts-modal-close" onclick="closeAccountsModal()">&times;</button>
+        </div>
+        <div id="modal-loading" style="text-align:center;padding:40px;color:#999;">Đang tải...</div>
+        <div id="modal-body" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Account ID</th>
+                        <th>Dữ liệu tài khoản</th>
+                        <th>Ngày gán</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-table-body"></tbody>
+            </table>
+            <div id="modal-empty" style="display:none;text-align:center;padding:20px;color:#999;">
+                Không tìm thấy tài khoản nào cho đơn hàng này.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.accounts-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+}
+.accounts-modal-content {
+    background: #fff; border-radius: 12px; width: 90%; max-width: 700px;
+    max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.accounts-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid #eee;
+    position: sticky; top: 0; background: #fff; border-radius: 12px 12px 0 0;
+}
+.accounts-modal-header h3 { margin: 0; font-size: 18px; }
+.accounts-modal-close {
+    background: none; border: none; font-size: 24px;
+    cursor: pointer; color: #999; padding: 0 4px;
+}
+.accounts-modal-close:hover { color: #333; }
+#modal-body { padding: 0 20px 20px; }
+#modal-body table { margin-top: 0; }
+.order-sl-link {
+    color: #0066ff; text-decoration: underline; cursor: pointer; font-weight: 600;
+}
+.order-sl-link:hover { color: #0044cc; }
+</style>
+
+<script>
+function showOrderAccounts(el, orderId, productId, quantity) {
+    var modal = document.getElementById('accounts-modal');
+    var loading = document.getElementById('modal-loading');
+    var body = document.getElementById('modal-body');
+    var title = document.getElementById('modal-title');
+    var tbody = document.getElementById('modal-table-body');
+    var empty = document.getElementById('modal-empty');
+
+    // Reset
+    loading.style.display = 'block';
+    body.style.display = 'none';
+    modal.style.display = 'flex';
+    title.textContent = 'Tài khoản đơn #' + orderId + ' (SP#' + productId + ')';
+
+    fetch('/admin/orders/' + orderId + '/accounts')
+        .then(function(res) {
+            if (!res.ok) throw new Error('Lỗi tải dữ liệu');
+            return res.json();
+        })
+        .then(function(accounts) {
+            loading.style.display = 'none';
+            body.style.display = 'block';
+            tbody.innerHTML = '';
+
+            if (!accounts || accounts.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                accounts.forEach(function(acc, idx) {
+                    var row = tbody.insertRow();
+                    row.insertCell(0).textContent = idx + 1;
+                    row.insertCell(1).textContent = acc.id;
+                    row.insertCell(2).innerHTML = '<code>' + (acc.account_data || '-') + '</code>';
+                    row.insertCell(3).textContent = acc.created_at ? new Date(acc.created_at).toLocaleString('vi-VN') : '-';
+                });
+            }
+        })
+        .catch(function(err) {
+            loading.style.display = 'none';
+            body.style.display = 'block';
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            empty.textContent = 'Lỗi: ' + err.message;
+        });
+
+    return false;
+}
+
+function closeAccountsModal() {
+    document.getElementById('accounts-modal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.getElementById('accounts-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAccountsModal();
+});
+</script>
