@@ -31,7 +31,7 @@ other = "👤 **Your Profile**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👥 Username
 other = "🛒 Select the account type to buy:"
 
 [product_item]
-other = "📦 {{.Name}} — 💵 {{.Price}} USDT (Stock: {{.Stock}})"
+other = "{{.Name}} — {{.Price}} USDT (Stock: {{.Stock}})"
 
 [enter_quantity]
 other = "🔢 Enter quantity for **{{.ProductName}}**\n💵 Price: {{.Price}} USDT each\n📦 In stock: {{.Stock}}"
@@ -124,7 +124,7 @@ other = "🌐 This transaction uses a network that is not in the shop's supporte
 other = "📣 **Today's Product Update**\n"
 
 [daily_product_item]
-other = "{{.Index}}. 📦 {{.Name}} — 💵 {{.Price}} USDT — Stock: {{.Stock}}"
+other = "{{.Index}}. {{.Name}} — {{.Price}} USDT — Stock: {{.Stock}}"
 
 [daily_product_footer]
 other = "\n Press **🛒 Buy Account** to place an order!"
