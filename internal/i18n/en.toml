@@ -4,130 +4,130 @@
 other = "👋 Hello {{.Name}}!\n\nPlease select your language:"
 
 [welcome]
-other = "Welcome to Start Shop!\nSelect a function below:"
+other = "🏪 Welcome to Start Shop!\nSelect a function below:"
 
 [btn_buy]
-other = "Buy Account"
+other = "🛒 Buy Account"
 
 [btn_profile]
-other = "Profile"
+other = "👤 Profile"
 
 [btn_deposit]
-other = "Deposit"
+other = "💰 Deposit"
 
 [btn_support]
-other = "Support"
+other = "💬 Support"
 
 [btn_notes]
-other = "Rule & FAQ"
+other = "📋 Rule & FAQ"
 
 [btn_language]
-other = "Language"
+other = "🌐 Language"
 
 [profile_info]
-other = "**Your Profile**\n\n Telegram ID: `{{.TeleID}}`\n Username: @{{.Username}}\n Balance: **{{.Balance}} USDT**\n Joined: {{.JoinDate}}"
+other = "👤 **Your Profile**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👥 Username: @{{.Username}}\n💰 Balance: **{{.Balance}} USDT**\n📅 Joined: {{.JoinDate}}"
 
 [select_product]
-other = "Select the account type to buy:"
+other = "🛒 Select the account type to buy:"
 
 [product_item]
-other = "{{.Name}} — {{.Price}} USDT (Stock: {{.Stock}})"
+other = "📦 {{.Name}} — 💵 {{.Price}} USDT (Stock: {{.Stock}})"
 
 [enter_quantity]
-other = "Enter quantity for **{{.ProductName}}**\n Price: {{.Price}} USDT each\n In stock: {{.Stock}}"
+other = "🔢 Enter quantity for **{{.ProductName}}**\n💵 Price: {{.Price}} USDT each\n📦 In stock: {{.Stock}}"
 
 [insufficient_balance]
-other = "Insufficient balance!\nRequired: {{.Required}} USDT\nBalance: {{.Balance}} USDT\n\n Please deposit more funds."
+other = "⚠️ Insufficient balance!\n💵 Required: {{.Required}} USDT\n💰 Balance: {{.Balance}} USDT\n\nPlease deposit more funds."
 
 [out_of_stock]
-other = "Out of stock or insufficient quantity.\nAvailable: {{.Available}}"
+other = "📦 Out of stock or insufficient quantity.\nAvailable: {{.Available}}"
 
 [order_success]
-other = "Order #{{.OrderID}} successful!\n\n Product: {{.ProductName}}\n Quantity: {{.Quantity}}\n Total: {{.Total}} USDT\n\n Account file attached below."
+other = "✅ Order #{{.OrderID}} successful!\n\n📦 Product: {{.ProductName}}\n🔢 Quantity: {{.Quantity}}\n💵 Total: {{.Total}} USDT\n\n📎 Account file attached below."
 
 [deposit_instructions]
-other = "<b>How to Deposit USDT</b>\n\n Send USDT using one of the following network routes:\n{{.Routes}}\n\n <b>After sending</b>, please send the transaction ID to the bot for verification.\n\n💡 You can send TxID/TxHash or Binance internal transaction ID (shown in email/withdrawal history)."
+other = "💰 <b>How to Deposit USDT</b>\n\n🌐 Send USDT using one of the following network routes:\n{{.Routes}}\n\n✅ <b>After sending</b>, please send the transaction ID to the bot for verification.\n\n💡 You can send TxID/TxHash or Binance internal transaction ID (shown in email/withdrawal history)."
 
 [deposit_success]
-other = "Deposit successful!\n\n Amount: **{{.Amount}} USDT**\n New balance: **{{.NewBalance}} USDT**"
+other = "✅ Deposit successful!\n\n💵 Amount: **{{.Amount}} USDT**\n💰 New balance: **{{.NewBalance}} USDT**"
 
 [support_message]
-other = "**Support**\n\nContact admin: @{{.AdminUsername}}\nOr click: {{.SupportLink}}"
+other = "💬 **Support**\n\n👤 Contact admin: @{{.AdminUsername}}\n🔗 Or click: {{.SupportLink}}"
 
 [notes_header]
-other = "**Important Notes**\n"
+other = "📋 **Important Notes**\n"
 
 [no_notes]
-other = "No notes available."
+other = "📭 No notes available."
 
 [language_select]
 other = "🌐 Chọn ngôn ngữ / Select language:"
 
 [language_changed]
-other = "Language changed to English!"
+other = "✅ Language changed to English!"
 
 [invalid_input]
-other = "Invalid input. Please try again."
+other = "⚠️ Invalid input. Please try again."
 
 [error_general]
-other = "An error occurred. Please try again later."
+other = "❌ An error occurred. Please try again later."
 
 [btn_back]
-other = "Back"
+other = "⬅️ Back"
 
 [confirm_buy]
-other = "Confirm purchase?\n\n {{.ProductName}} x{{.Quantity}}\n Total: {{.Total}} USDT\n Balance: {{.Balance}} USDT"
+other = "🛒 Confirm purchase?\n\n📦 {{.ProductName}} x{{.Quantity}}\n💵 Total: {{.Total}} USDT\n💰 Balance: {{.Balance}} USDT"
 
 [btn_confirm]
-other = "Confirm"
+other = "✅ Confirm"
 
 [btn_cancel]
-other = "Cancel"
+other = "❌ Cancel"
 
 [order_cancelled]
-other = "Order has been cancelled."
+other = "❌ Order has been cancelled."
 
 [invalid_quantity]
-other = "Invalid quantity. Please enter a positive integer."
+other = "⚠️ Invalid quantity. Please enter a positive integer."
 
 [binance_not_configured]
-other = "Payment system not configured. Please contact admin."
+other = "⚙️ Payment system not configured. Please contact admin."
 
 [binance_api_error]
-other = "Payment system error (invalid or expired API key). Please contact admin."
+other = "❌ Payment system error (invalid or expired API key). Please contact admin."
 
 [deposit_txid_invalid]
-other = "Invalid transaction hash (TxID). Please send the correct TxID."
+other = "⚠️ Invalid transaction hash (TxID). Please send the correct TxID."
 
 [deposit_txid_processing]
-other = "Verifying your transaction, please wait..."
+other = "⏳ Verifying your transaction, please wait..."
 
 [deposit_txid_already_used]
-other = "This TxID has already been used."
+other = "🔁 This TxID has already been used."
 
 [deposit_txid_not_found]
-other = "Transaction not found with this TxID on Binance.\nPlease double-check your TxID or wait a few minutes for confirmation."
+other = "🔎 Transaction not found with this TxID on Binance.\nPlease double-check your TxID or wait a few minutes for confirmation."
 
 [deposit_txid_not_confirmed]
-other = "Transaction not yet confirmed on blockchain. Please try again in a few minutes."
+other = "⏳ Transaction not yet confirmed on blockchain. Please try again in a few minutes."
 
 [deposit_txid_not_usdt]
-other = "This transaction is not USDT. Please only send USDT."
+other = "⚠️ This transaction is not USDT. Please only send USDT."
 
 [deposit_txid_wrong_address]
-other = "This transaction was sent to a different address than the shop's deposit address."
+other = "📍 This transaction was sent to a different address than the shop's deposit address."
 
 [deposit_txid_wrong_network]
-other = "This transaction uses a network that is not in the shop's supported deposit networks."
+other = "🌐 This transaction uses a network that is not in the shop's supported deposit networks."
 
 [daily_product_header]
-other = "**Today's Product Update**\n"
+other = "📣 **Today's Product Update**\n"
 
 [daily_product_item]
-other = "{{.Index}}. {{.Name}} — {{.Price}} USDT — Stock: {{.Stock}}"
+other = "{{.Index}}. 📦 {{.Name}} — 💵 {{.Price}} USDT — Stock: {{.Stock}}"
 
 [daily_product_footer]
-other = "\n Press **Buy Account** to place an order!"
+other = "\n Press **🛒 Buy Account** to place an order!"
 
 [daily_no_products]
-other = "No products available at the moment. Please check back later!"
+other = "📭 No products available at the moment. Please check back later!"
