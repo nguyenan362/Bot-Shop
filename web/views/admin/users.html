@@ -17,8 +17,7 @@
                 <th>Admin</th>
                 <th>Trạng thái</th>
                 <th>Ngày tham gia</th>
-                <th>Cộng tiền</th>
-                <th>Ban/Unban</th>
+                <th>Thao tác</th>
             </tr>
         </thead>
         <tbody>
@@ -32,14 +31,8 @@
                 <td>{{if .IsBanned}}<span class="badge badge-danger">Đã ban</span>{{else}}<span class="badge badge-success">Hoạt động</span>{{end}}</td>
                 <td>{{.JoinDate.Format "2006-01-02"}}</td>
                 <td>
-                    <form method="POST" action="/admin/users/{{.TeleID}}/adjust-balance" style="display:flex;gap:4px;align-items:center;">
-                        <input type="number" name="amount" step="0.01" placeholder="USDT" required style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
-                        <button type="submit" class="btn btn-sm btn-success">+/-</button>
-                    </form>
-                </td>
-                <td>
-                    {{if .IsAdmin}}
-                    <span style="color:#6b7280;">-</span>
+                    {{if not .CanManageBan}}
+                    <span style="color:#6b7280;">Không thể ban admin</span>
                     {{else if .IsBanned}}
                     <form method="POST" action="/admin/users/{{.TeleID}}/unban" style="display:inline;">
                         <button type="submit" class="btn btn-sm btn-primary">Bỏ ban</button>
@@ -52,7 +45,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="9" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999">Chưa có người dùng nào</td></tr>
             {{end}}
         </tbody>
     </table>

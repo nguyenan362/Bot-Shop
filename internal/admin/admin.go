@@ -21,6 +21,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type adminUserView struct {
+	models.User
+	CanManageBan bool
+}
+
 // AdminHandler handles admin web panel routes.
 type AdminHandler struct {
 	cfg         *config.Config
@@ -99,7 +104,6 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	admin.Get("/users", h.listUsers)
 	admin.Post("/users/:id/ban", h.banUser)
 	admin.Post("/users/:id/unban", h.unbanUser)
-	admin.Post("/users/:id/adjust-balance", h.adjustBalance)
 	admin.Get("/deposits", h.listDeposits)
 
 	// Binance Config
@@ -659,9 +663,17 @@ func (h *AdminHandler) listUsers(c *fiber.Ctx) error {
 		}
 	}
 
+	userViews := make([]adminUserView, 0, len(users))
+	for _, user := range users {
+		userViews = append(userViews, adminUserView{
+			User:         user,
+			CanManageBan: !user.IsAdmin,
+		})
+	}
+
 	data := fiber.Map{
 		"Title": "Người dùng",
-		"Users": users,
+		"Users": userViews,
 		"Query": q,
 	}
 
@@ -701,30 +713,6 @@ func (h *AdminHandler) unbanUser(c *fiber.Ctx) error {
 
 	if err := h.userRepo.SetBanned(c.Context(), teleID, false); err != nil {
 		return c.Status(500).SendString("Không thể bỏ ban người dùng")
-	}
-
-	return c.Redirect("/admin/users")
-}
-
-func (h *AdminHandler) adjustBalance(c *fiber.Ctx) error {
-	teleID, err := strconv.ParseInt(c.Params("id"), 10, 64)
-	if err != nil {
-		return c.Status(400).SendString("Telegram ID không hợp lệ")
-	}
-
-	amountStr := strings.TrimSpace(c.FormValue("amount"))
-	amount, err := decimal.NewFromString(amountStr)
-	if err != nil {
-		return c.Status(400).SendString("Số tiền không hợp lệ")
-	}
-
-	if amount.IsZero() {
-		return c.Status(400).SendString("Số tiền không được bằng 0")
-	}
-
-	if err := h.userRepo.AddBalance(c.Context(), teleID, amount); err != nil {
-		log.Error().Err(err).Int64("tele_id", teleID).Str("amount", amount.String()).Msg("adjust balance failed")
-		return c.Status(500).SendString("Không thể điều chỉnh số dư")
 	}
 
 	return c.Redirect("/admin/users")
