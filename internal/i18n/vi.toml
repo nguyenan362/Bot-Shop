@@ -31,7 +31,7 @@ other = "👤 **Hồ sơ của bạn**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👥 
 other = "🛒 Chọn loại tài khoản muốn mua:"
 
 [product_item]
-other = "{{.Name}} — {{.Price}} USDT ({{.Stock}})"
+other = "{{.Name}} — {{.Price}} ({{.Stock}})"
 
 [enter_quantity]
 other = "🔢 Nhập số lượng muốn mua cho **{{.ProductName}}**\n💵 Giá: {{.Price}} USDT/cái\n📦 Còn hàng: {{.Stock}}"
