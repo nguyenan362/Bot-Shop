@@ -73,6 +73,7 @@
                 <th>Dữ liệu tài khoản</th>
                 <th style="width:100px">Trạng thái</th>
                 <th style="width:110px">Kích hoạt</th>
+                <th style="width:160px">Người mua</th>
                 <th style="width:140px">Ngày thêm</th>
                 <th style="width:140px">Ngày bán</th>
                 <th style="width:80px">Thao tác</th>
@@ -103,6 +104,20 @@
                     <span style="color:#999;font-size:12px;">-</span>
                     {{end}}
                 </td>
+                <td>
+                    {{if .Used}}
+                        {{if .BuyerUsername}}
+                        <div>@{{.BuyerUsername}}</div>
+                        {{end}}
+                        {{if .BuyerTeleID}}
+                        <div style="color:#666;font-size:12px">{{.BuyerTeleID}}</div>
+                        {{else if not .BuyerUsername}}
+                        <span style="color:#999;font-size:12px;">-</span>
+                        {{end}}
+                    {{else}}
+                    <span style="color:#999;font-size:12px;">-</span>
+                    {{end}}
+                </td>
                 <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
                 <td>
                     {{if .SoldAt}}
@@ -123,7 +138,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align:center;color:#999;padding:24px">Chưa có tài khoản nào</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999;padding:24px">Chưa có tài khoản nào</td></tr>
             {{end}}
         </tbody>
     </table>

@@ -31,7 +31,7 @@ other = "👤 **Your Profile**\n\n🆔 Telegram ID: `{{.TeleID}}`\n👥 Username
 other = "🛒 Select the account type to buy:"
 
 [product_item]
-other = "{{.Name}} — {{.Price}} USDT (Stock: {{.Stock}})"
+other = "{{.Name}} — {{.Price}} USDT ({{.Stock}})"
 
 [enter_quantity]
 other = "🔢 Enter quantity for **{{.ProductName}}**\n💵 Price: {{.Price}} USDT each\n📦 In stock: {{.Stock}}"
