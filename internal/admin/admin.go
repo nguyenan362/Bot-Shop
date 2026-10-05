@@ -88,6 +88,7 @@ func (h *AdminHandler) RegisterRoutes(app *fiber.App) {
 	admin.Post("/products/:id/accounts/:aid/toggle", h.toggleAccountActive)
 	admin.Post("/products/:id/accounts/clear", h.clearUnusedAccounts)
 	admin.Post("/products/:id/toggle", h.toggleProduct)
+	admin.Post("/products/:id/toggle-notify", h.toggleProductNotify)
 
 	// Notes
 	admin.Get("/notes", h.listNotes)
@@ -234,14 +235,15 @@ func (h *AdminHandler) createProduct(c *fiber.Ctx) error {
 	price, _ := decimal.NewFromString(c.FormValue("price_usdt"))
 
 	p := &models.Product{
-		NameVI:        c.FormValue("name_vi"),
-		NameEN:        c.FormValue("name_en"),
-		PriceUSDT:     price,
-		Stock:         0,
-		DescriptionVI: c.FormValue("description_vi"),
-		DescriptionEN: c.FormValue("description_en"),
-		Active:        c.FormValue("active") == "on",
-		ShowDescription: c.FormValue("show_description") == "on",
+		NameVI:           c.FormValue("name_vi"),
+		NameEN:           c.FormValue("name_en"),
+		PriceUSDT:        price,
+		Stock:            0,
+		DescriptionVI:    c.FormValue("description_vi"),
+		DescriptionEN:    c.FormValue("description_en"),
+		Active:           c.FormValue("active") == "on",
+		ShowDescription:  c.FormValue("show_description") == "on",
+		NotifyOutOfStock: c.FormValue("notify_out_of_stock") == "on",
 	}
 
 	if err := h.productRepo.Create(c.Context(), p); err != nil {
@@ -279,15 +281,16 @@ func (h *AdminHandler) updateProduct(c *fiber.Ctx) error {
 	}
 
 	p := &models.Product{
-		ID:            id,
-		NameVI:        c.FormValue("name_vi"),
-		NameEN:        c.FormValue("name_en"),
-		PriceUSDT:     price,
-		Stock:         current.Stock,
-		DescriptionVI: c.FormValue("description_vi"),
-		DescriptionEN: c.FormValue("description_en"),
-		Active:        c.FormValue("active") == "on",
-		ShowDescription: c.FormValue("show_description") == "on",
+		ID:               id,
+		NameVI:           c.FormValue("name_vi"),
+		NameEN:           c.FormValue("name_en"),
+		PriceUSDT:        price,
+		Stock:            current.Stock,
+		DescriptionVI:    c.FormValue("description_vi"),
+		DescriptionEN:    c.FormValue("description_en"),
+		Active:           c.FormValue("active") == "on",
+		ShowDescription:  c.FormValue("show_description") == "on",
+		NotifyOutOfStock: c.FormValue("notify_out_of_stock") == "on",
 	}
 
 	if err := h.productRepo.Update(c.Context(), p); err != nil {
@@ -440,6 +443,19 @@ func (h *AdminHandler) toggleProduct(c *fiber.Ctx) error {
 	product.Active = !product.Active
 	if err := h.productRepo.Update(c.Context(), product); err != nil {
 		return c.Status(500).SendString("Lỗi khi đổi trạng thái sản phẩm")
+	}
+	return c.Redirect("/admin/products")
+}
+
+func (h *AdminHandler) toggleProductNotify(c *fiber.Ctx) error {
+	id, _ := strconv.Atoi(c.Params("id"))
+	product, err := h.productRepo.GetByID(c.Context(), id)
+	if err != nil {
+		return c.Status(404).SendString("Không tìm thấy sản phẩm")
+	}
+	product.NotifyOutOfStock = !product.NotifyOutOfStock
+	if err := h.productRepo.Update(c.Context(), product); err != nil {
+		return c.Status(500).SendString("Lỗi khi đổi trạng thái thông báo hết hàng")
 	}
 	return c.Redirect("/admin/products")
 }

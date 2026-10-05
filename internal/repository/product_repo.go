@@ -21,7 +21,7 @@ func NewProductRepo(pool *pgxpool.Pool) *ProductRepo {
 // ListActive returns all active products.
 func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), COALESCE(notify_out_of_stock, true), created_at
 		FROM products WHERE active = true ORDER BY id
 	`)
 	if err != nil {
@@ -33,7 +33,7 @@ func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) 
 	for rows.Next() {
 		var p models.Product
 		if err := rows.Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt); err != nil {
+			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.NotifyOutOfStock, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -44,7 +44,7 @@ func (r *ProductRepo) ListActive(ctx context.Context) ([]models.Product, error) 
 // ListAll returns all products including inactive (admin).
 func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), COALESCE(notify_out_of_stock, true), created_at
 		FROM products ORDER BY id
 	`)
 	if err != nil {
@@ -56,7 +56,7 @@ func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 	for rows.Next() {
 		var p models.Product
 		if err := rows.Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt); err != nil {
+			&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.NotifyOutOfStock, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -68,10 +68,10 @@ func (r *ProductRepo) ListAll(ctx context.Context) ([]models.Product, error) {
 func (r *ProductRepo) GetByID(ctx context.Context, id int) (*models.Product, error) {
 	p := &models.Product{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), created_at
+		SELECT id, name_vi, name_en, price_usdt, stock, description_vi, description_en, active, COALESCE(show_description, false), COALESCE(notify_out_of_stock, true), created_at
 		FROM products WHERE id = $1
 	`, id).Scan(&p.ID, &p.NameVI, &p.NameEN, &p.PriceUSDT, &p.Stock,
-		&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.CreatedAt)
+		&p.DescriptionVI, &p.DescriptionEN, &p.Active, &p.ShowDescription, &p.NotifyOutOfStock, &p.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -81,19 +81,19 @@ func (r *ProductRepo) GetByID(ctx context.Context, id int) (*models.Product, err
 // Create inserts a new product.
 func (r *ProductRepo) Create(ctx context.Context, p *models.Product) error {
 	return r.pool.QueryRow(ctx, `
-		INSERT INTO products (name_vi, name_en, price_usdt, stock, description_vi, description_en, active, show_description)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO products (name_vi, name_en, price_usdt, stock, description_vi, description_en, active, show_description, notify_out_of_stock)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
-	`, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription).Scan(&p.ID)
+	`, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription, p.NotifyOutOfStock).Scan(&p.ID)
 }
 
 // Update modifies a product.
 func (r *ProductRepo) Update(ctx context.Context, p *models.Product) error {
 	_, err := r.pool.Exec(ctx, `
 		UPDATE products SET name_vi=$2, name_en=$3, price_usdt=$4, stock=$5,
-		       description_vi=$6, description_en=$7, active=$8, show_description=$9
+		       description_vi=$6, description_en=$7, active=$8, show_description=$9, notify_out_of_stock=$10
 		WHERE id=$1
-	`, p.ID, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription)
+	`, p.ID, p.NameVI, p.NameEN, p.PriceUSDT, p.Stock, p.DescriptionVI, p.DescriptionEN, p.Active, p.ShowDescription, p.NotifyOutOfStock)
 	return err
 }
 

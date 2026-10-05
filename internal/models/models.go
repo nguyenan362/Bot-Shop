@@ -28,7 +28,8 @@ type Product struct {
 	DescriptionVI string          `json:"description_vi"`
 	DescriptionEN string          `json:"description_en"`
 	Active        bool            `json:"active"`
-	ShowDescription bool            `json:"show_description"`
+	ShowDescription bool          `json:"show_description"`
+	NotifyOutOfStock bool         `json:"notify_out_of_stock"`
 	CreatedAt     time.Time       `json:"created_at"`
 }
 

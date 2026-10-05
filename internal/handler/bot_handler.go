@@ -586,7 +586,7 @@ func (h *BotHandler) handleBuyConfirm(ctx context.Context, cb *telego.CallbackQu
 		log.Error().Err(err).Msg("send document failed")
 	}
 
-	if product != nil {
+	if product != nil && product.NotifyOutOfStock {
 		h.autoNotifyOutOfStock(ctx, productID, product.NameEN, teleID)
 	}
 }
@@ -752,6 +752,15 @@ func (h *BotHandler) broadcastMediaByAdminCommand(ctx context.Context, chatID in
 }
 
 func (h *BotHandler) autoNotifyOutOfStock(ctx context.Context, productID int, productName string, buyerTeleID int64) {
+	p, getErr := h.svc.ProductRepo.GetByID(ctx, productID)
+	if getErr != nil || p == nil {
+		log.Error().Err(getErr).Int("product_id", productID).Msg("auto out-of-stock: get product failed")
+		return
+	}
+	if !p.NotifyOutOfStock {
+		return
+	}
+
 	available, err := h.svc.ProductRepo.CountAvailable(ctx, productID)
 	if err != nil {
 		log.Error().Err(err).Int("product_id", productID).Msg("auto out-of-stock: count available failed")
@@ -774,11 +783,9 @@ func (h *BotHandler) autoNotifyOutOfStock(ctx context.Context, productID int, pr
 	}
 
 	if strings.TrimSpace(productName) == "" {
-		if p, getErr := h.svc.ProductRepo.GetByID(ctx, productID); getErr == nil && p != nil {
-			productName = p.NameEN
-			if strings.TrimSpace(productName) == "" {
-				productName = p.NameVI
-			}
+		productName = p.NameEN
+		if strings.TrimSpace(productName) == "" {
+			productName = p.NameVI
 		}
 	}
 	if strings.TrimSpace(productName) == "" {

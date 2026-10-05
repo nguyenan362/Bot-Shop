@@ -12,6 +12,7 @@
                 <th>Giá (USDT)</th>
                 <th>Kho</th>
                 <th>Trạng thái</th>
+                <th>TB hết hàng</th>
                 <th>Thao tác</th>
             </tr>
         </thead>
@@ -32,6 +33,15 @@
                         {{end}}
                     </form>
                 </td>
+                <td>
+                    <form method="POST" action="/admin/products/{{.ID}}/toggle-notify" style="display:inline">
+                        {{if .NotifyOutOfStock}}
+                        <button class="badge badge-success" style="border:none;cursor:pointer" title="Nhấn để tắt thông báo hết hàng">Bật</button>
+                        {{else}}
+                        <button class="badge badge-secondary" style="border:none;cursor:pointer" title="Nhấn để bật thông báo hết hàng">Tắt</button>
+                        {{end}}
+                    </form>
+                </td>
                 <td class="actions">
                     <a href="/admin/products/{{.ID}}/edit" class="btn btn-primary btn-sm">Sửa</a>
                     <a href="/admin/products/{{.ID}}/accounts" class="btn btn-success btn-sm">Kho ({{.Stock}})</a>
@@ -41,7 +51,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align:center;color:#999;padding:24px">Chưa có sản phẩm nào</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:#999;padding:24px">Chưa có sản phẩm nào</td></tr>
             {{end}}
         </tbody>
     </table>
